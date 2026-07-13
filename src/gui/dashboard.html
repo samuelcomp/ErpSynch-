@@ -425,8 +425,8 @@ function showGraphEmpty() {
   const container = document.getElementById('graph-container');
   container.innerHTML = `<div class="graph-empty">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 6h-3a5 5 0 0 0-5 5v2"/><path d="M18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
-    <div>No wiki-links found in your vault notes.</div>
-    <div style="font-size:12px;">Add [[links]] to your markdown files to see connections.</div>
+    <div>No notes or wiki-links found in your vault.</div>
+    <div style="font-size:12px;">Check that your vault path is set in Settings and notes contain [[links]].</div>
   </div>`;
 }
 
@@ -442,53 +442,65 @@ function runForceGraph() {
     const rect = container.getBoundingClientRect();
     W = rect.width; H = rect.height;
     canvas.width = W; canvas.height = H;
+    draw();
   }
   resize();
   window.addEventListener('resize', resize);
 
   const { nodes, links } = graphData;
   const nodeMap = new Map();
+  const adj = new Map();
   const cx = W / 2, cy = H / 2;
 
+  // Build adjacency for highlighting
+  for (const n of nodes) adj.set(n.id, new Set());
+  for (const link of links) {
+    adj.get(link.source).add(link.target);
+    adj.get(link.target).add(link.source);
+  }
+
+  const r = Math.min(W, H) * 0.35;
   nodes.forEach((n, i) => {
     const angle = (2 * Math.PI * i) / nodes.length;
-    const r = Math.min(W, H) * 0.3;
     n.x = cx + r * Math.cos(angle);
     n.y = cy + r * Math.sin(angle);
     n.vx = 0; n.vy = 0;
-    n.radius = Math.max(4, Math.min(8, 40 / Math.sqrt(nodes.length)));
+    n.radius = Math.max(5, Math.min(10, 50 / Math.sqrt(nodes.length)));
     nodeMap.set(n.id, n);
   });
 
   let dragNode = null;
+  let hoverNode = null;
   let mouseX = 0, mouseY = 0;
+  let neighborSet = new Set();
 
   canvas.onmousedown = e => {
-    const r = canvas.getBoundingClientRect();
-    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     for (const n of nodes) {
-      const dx = mx - n.x, dy = my - n.y;
-      if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) { dragNode = n; break; }
+      if ((mx - n.x) ** 2 + (my - n.y) ** 2 < (n.radius + 10) ** 2) { dragNode = n; break; }
     }
   };
   canvas.onmousemove = e => {
-    const r = canvas.getBoundingClientRect();
-    mouseX = e.clientX - r.left; mouseY = e.clientY - r.top;
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
     if (dragNode) { dragNode.x = mouseX; dragNode.y = mouseY; return; }
     let hit = null;
     for (const n of nodes) {
-      const dx = mouseX - n.x, dy = mouseY - n.y;
-      if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) { hit = n; break; }
+      if ((mouseX - n.x) ** 2 + (mouseY - n.y) ** 2 < (n.radius + 10) ** 2) { hit = n; break; }
     }
+    hoverNode = hit;
+    neighborSet = hit ? (adj.get(hit.id) || new Set()) : new Set();
     tooltip.style.display = hit ? 'block' : 'none';
     if (hit) {
-      tooltip.textContent = hit.name;
-      tooltip.style.left = Math.min(mouseX + 12, W - 150) + 'px';
-      tooltip.style.top = (mouseY - 36) + 'px';
+      const connected = neighborSet.size;
+      tooltip.textContent = hit.name + (connected ? ` (${connected} links)` : '');
+      tooltip.style.left = Math.min(mouseX + 14, W - 180) + 'px';
+      tooltip.style.top = Math.max(4, mouseY - 40) + 'px';
     }
   };
   canvas.onmouseup = () => { dragNode = null; };
-  canvas.onmouseleave = () => { dragNode = null; tooltip.style.display = 'none'; };
+  canvas.onmouseleave = () => { dragNode = null; hoverNode = null; neighborSet = new Set(); tooltip.style.display = 'none'; };
 
   function simulate() {
     for (let i = 0; i < nodes.length; i++) {
@@ -496,7 +508,7 @@ function runForceGraph() {
         const a = nodes[i], b = nodes[j];
         let dx = b.x - a.x, dy = b.y - a.y;
         let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = 6000 / (dist * dist);
+        const force = 8000 / (dist * dist);
         a.vx -= force * (dx / dist); a.vy -= force * (dy / dist);
         b.vx += force * (dx / dist); b.vy += force * (dy / dist);
       }
@@ -506,10 +518,9 @@ function runForceGraph() {
       if (!a || !b) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = (dist - 120) * 0.03;
-      const fx = force * (dx / dist), fy = force * (dy / dist);
-      a.vx += fx; a.vy += fy;
-      b.vx -= fx; b.vy -= fy;
+      const force = (dist - 130) * 0.025;
+      a.vx += force * (dx / dist); a.vy += force * (dy / dist);
+      b.vx -= force * (dx / dist); b.vy -= force * (dy / dist);
     }
     for (const n of nodes) {
       n.vx += (cx - n.x) * 0.001;
@@ -518,32 +529,87 @@ function runForceGraph() {
     let totalVel = 0;
     for (const n of nodes) {
       if (n === dragNode) continue;
-      n.vx *= 0.9; n.vy *= 0.9;
+      n.vx *= 0.88; n.vy *= 0.88;
       n.x += n.vx; n.y += n.vy;
       totalVel += Math.abs(n.vx) + Math.abs(n.vy);
       n.x = Math.max(15, Math.min(W - 15, n.x));
       n.y = Math.max(15, Math.min(H - 15, n.y));
     }
     draw();
-    if (totalVel > 0.1 || dragNode) graphAnimId = requestAnimationFrame(simulate);
+    if (totalVel > 0.2 || dragNode) graphAnimId = requestAnimationFrame(simulate);
     else graphAnimId = null;
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
+
+    // dimmed background when hovering
+    if (hoverNode && !dragNode) {
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Links
     for (const link of links) {
       const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
       if (!a || !b) continue;
+      const isHighlighted = hoverNode && (link.source === hoverNode.id || link.target === hoverNode.id);
+      if (hoverNode && !isHighlighted && !dragNode) continue;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.2; ctx.stroke();
+      if (isHighlighted) {
+        ctx.shadowColor = 'rgba(88,166,255,0.3)';
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = '#58a6ff';
+        ctx.lineWidth = 2;
+      } else {
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#30363d';
+        ctx.lineWidth = 1;
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
     }
+
+    // Nodes
     for (const n of nodes) {
-      const isHovered = tooltip.style.display === 'block' && tooltip.textContent === n.name;
-      ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-      ctx.fillStyle = isHovered ? '#58a6ff' : '#3b82f6';
+      const isHovered = n === hoverNode;
+      const isNeighbor = neighborSet.has(n.id);
+
+      if (hoverNode && !isHovered && !isNeighbor && !dragNode) {
+        // Dimmed node
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(48,54,61,0.4)';
+        ctx.fill();
+        continue;
+      }
+
+      // Glow for hovered
+      if (isHovered) {
+        ctx.shadowColor = 'rgba(88,166,255,0.5)';
+        ctx.shadowBlur = 20;
+      }
+      // Gradient fill
+      const grad = ctx.createRadialGradient(n.x - 2, n.y - 2, 0, n.x, n.y, n.radius + 2);
+      if (isHovered) {
+        grad.addColorStop(0, '#79c0ff');
+        grad.addColorStop(1, '#58a6ff');
+      } else if (isNeighbor) {
+        grad.addColorStop(0, '#58a6ff');
+        grad.addColorStop(1, '#1f4a8a');
+      } else {
+        grad.addColorStop(0, '#60a0f0');
+        grad.addColorStop(1, '#2d5a9a');
+      }
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.radius + (isHovered ? 2 : 0), 0, Math.PI * 2);
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = isHovered ? '#79c0ff' : '#1f4a8a';
-      ctx.lineWidth = isHovered ? 2.5 : 1.5; ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Label
+      ctx.font = isHovered ? 'bold 12px -apple-system, sans-serif' : '11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = isHovered ? '#ffffff' : (isNeighbor ? '#e1e4e8' : '#8b949e');
+      ctx.fillText(n.name, n.x, n.y + n.radius + 16);
     }
   }
 
