@@ -8,6 +8,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('ErpSynch')),
@@ -19,6 +20,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatusCard(
+                    icon: Icons.wifi,
                     label: 'Status',
                     value: state.connected ? 'Connected' : 'Disconnected',
                     color: state.connected ? Colors.green : Colors.orange,
@@ -27,21 +29,27 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatusCard(
+                    icon: Icons.hourglass_bottom,
                     label: 'Pending',
                     value: '${state.pendingCount}',
-                    color: Colors.blue,
+                    color: state.connected ? theme.colorScheme.primary : Colors.grey,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            SizedBox(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               width: double.infinity,
               height: 48,
               child: FilledButton.icon(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Manual sync triggered')),
+                    SnackBar(
+                      content: const Text('Sync started'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.sync),
@@ -49,20 +57,35 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Sync Log', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Row(
+              children: [
+                Icon(Icons.history, size: 18, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text('Sync Log', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.grey[300])),
+              ],
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: ListView.builder(
-                itemCount: state.logs.length,
-                itemBuilder: (_, i) => ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.sync, size: 16),
-                  title: Text(state.logs[i], style: const TextStyle(fontSize: 13)),
-                ),
-              ),
+              child: state.logs.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sync_disabled, size: 40, color: Colors.grey[700]),
+                        const SizedBox(height: 8),
+                        Text('No sync activity yet', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: state.logs.length,
+                    itemBuilder: (_, i) => ListTile(
+                      dense: true,
+                      leading: Icon(Icons.sync, size: 16, color: theme.colorScheme.primary),
+                      title: Text(state.logs[i], style: const TextStyle(fontSize: 13)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
             ),
           ],
         ),
@@ -72,11 +95,12 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _StatusCard extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
   final Color color;
 
-  const _StatusCard({required this.label, required this.value, required this.color});
+  const _StatusCard({required this.icon, required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -86,9 +110,15 @@ class _StatusCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-            const SizedBox(height: 4),
-            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
       ),
