@@ -1,7 +1,16 @@
-peers:
-  - id: work-pc
-    host: 192.168.1.10
-    port: 9001
+profiles:
+  - name: home
+    peers:
+      - id: home-pc
+        host: 192.168.1.10
+        port: 9001
+  - name: office
+    peers:
+      - id: office-pc
+        host: 10.0.0.50
+        port: 9001
+
+activeProfile: home
 
 vaults:
   - local_path: C:\Users\Sami\SamiBrain\ERPsynch

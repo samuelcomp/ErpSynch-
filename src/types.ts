@@ -11,6 +11,21 @@ export interface PeerConfig {
   port?: number;
 }
 
+export interface Profile {
+  name: string;
+  peers: PeerConfig[];
+}
+
+export interface AppConfig {
+  profiles?: Profile[];
+  activeProfile?: string;
+  peers?: PeerConfig[];
+  vaults: VaultConfig[];
+  sync: SyncConfig;
+  transport: TransportConfig;
+  configPath?: string;
+}
+
 export interface SyncConfig {
   auto: boolean;
   intervalSeconds: number;

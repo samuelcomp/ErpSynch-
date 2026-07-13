@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { loadConfig } from './config.js';
+import { loadConfig, switchProfile } from './config.js';
 import { FileWatcher } from './watcher.js';
 import { Transport } from './transport.js';
 import { SignalingClient } from './signaling.js';
@@ -51,6 +51,7 @@ program
     if (options.web) {
       const gui = new GuiServer(parseInt(options.port, 10));
       gui.setEngine(engine);
+      gui.setConfig(config, configPath);
       gui.start();
     }
 
@@ -121,6 +122,7 @@ program
 
     const gui = new GuiServer(parseInt(options.port, 10));
     gui.setEngine(engine);
+    gui.setConfig(config, configPath);
     gui.start();
 
     process.on('SIGINT', async () => {
@@ -129,6 +131,18 @@ program
       await engine.stop();
       process.exit(0);
     });
+  });
+
+program
+  .command('profile')
+  .description('Switch active profile')
+  .argument('<name>', 'Profile name')
+  .option('-c, --config <path>', 'Config file path', 'config.yaml')
+  .action((name, options) => {
+    const configPath = path.resolve(options.config);
+    const config = loadConfig(configPath);
+    switchProfile(config, name);
+    console.log(`Switched to profile: ${name}`);
   });
 
 program.parse(process.argv);

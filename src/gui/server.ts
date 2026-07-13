@@ -4,6 +4,8 @@ import path from 'path';
 import { URL } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { SyncEngine } from '../sync-engine.js';
+import { AppConfig } from '../types.js';
+import { saveConfig, switchProfile } from '../config.js';
 
 const __dirname = import.meta.dirname;
 
@@ -19,6 +21,8 @@ export class GuiServer {
   private engine: SyncEngine | null = null;
   private logs: LogEntry[] = [];
   private port: number;
+  private config: AppConfig | null = null;
+  private configPath: string = '';
   private clients: Set<WebSocket> = new Set();
 
   constructor(port = 3456) {
@@ -43,6 +47,11 @@ export class GuiServer {
     this.engine = engine;
     this.engine.on('synced', (msg: string) => this.addLog('sync', msg));
     this.engine.on('error', (err: Error) => this.addLog('error', err.message));
+  }
+
+  setConfig(config: AppConfig, configPath: string): void {
+    this.config = config;
+    this.configPath = configPath;
   }
 
   private addLog(type: LogEntry['type'], message: string): void {
@@ -111,6 +120,51 @@ export class GuiServer {
     if (url.pathname === '/api/logs' && method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(this.logs));
+      return;
+    }
+
+    if (url.pathname === '/api/config' && method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(this.config || {}));
+      return;
+    }
+
+    if (url.pathname === '/api/config' && method === 'PUT') {
+      let body = '';
+      req.on('data', (chunk) => body += chunk);
+      req.on('end', () => {
+        try {
+          const updated = JSON.parse(body);
+          if (this.config) {
+            Object.assign(this.config, updated);
+            saveConfig(this.config);
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e: any) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/profile' && method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => body += chunk);
+      req.on('end', () => {
+        try {
+          const { name } = JSON.parse(body);
+          if (this.config) {
+            switchProfile(this.config, name);
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, activeProfile: this.config?.activeProfile }));
+        } catch (e: any) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
       return;
     }
 
