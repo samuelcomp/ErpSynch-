@@ -10,8 +10,6 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #0a0c10; color: #e1e4e8;
   }
-
-  /* Layout */
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
     background: #0d1117; border-right: 1px solid #21262d;
@@ -32,8 +30,6 @@
   .nav-item.active { color: #58a6ff; background: #161b22; border-left-color: #58a6ff; }
   .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
   .main { margin-left: 220px; padding: 28px 32px; }
-
-  /* Status cards */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .card {
     background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px;
@@ -46,7 +42,6 @@
   .card-value.yellow { color: #d29922; }
   .card-value.red { color: #f85149; }
   .card-value.blue { color: #58a6ff; }
-
   .btn {
     background: #238636; color: #fff; border: none; border-radius: 8px;
     padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500;
@@ -54,8 +49,9 @@
   }
   .btn:hover { background: #2ea043; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-warn { background: #d29922; }
+  .btn-warn:hover { background: #e3b341; }
 
-  /* Graph */
   .graph-container {
     position: relative; background: #0d1117; border: 1px solid #30363d;
     border-radius: 10px; overflow: hidden; height: 600px;
@@ -69,7 +65,6 @@
     box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 10;
   }
 
-  /* Log */
   .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .panel-header h3 { font-size: 15px; font-weight: 600; }
   .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -81,9 +76,22 @@
   .log-type.conflict { background: #3a2a1a; color: #d29922; }
   .log-type.info { background: #1a2a3a; color: #58a6ff; }
 
-  /* Panels */
   .panel { display: none; }
   .panel.active { display: block; }
+
+  .config-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-top: 12px; }
+  .config-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .config-row:last-child { margin-bottom: 0; }
+  .config-row label { min-width: 140px; color: #8b949e; font-size: 13px; }
+  .config-row input, .config-row select {
+    flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 8px 10px; color: #e1e4e8; font-size: 13px;
+  }
+  .config-row input:focus { border-color: #58a6ff; outline: none; }
+  .config-row input[readonly] { opacity: .7; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: #8b949e; margin-top: 20px; margin-bottom: 4px; }
+  .section-title:first-child { margin-top: 0; }
 
   .toast {
     position: fixed; bottom: 24px; right: 24px; background: #238636; color: #fff;
@@ -91,6 +99,12 @@
     transition: opacity .3s; box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 100;
   }
   .toast.show { opacity: 1; }
+
+  .graph-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: #8b949e; gap: 12px;
+  }
+  .graph-empty svg { width: 48px; height: 48px; stroke: #30363d; }
 </style>
 </head>
 <body>
@@ -102,12 +116,17 @@
     Status
   </div>
   <div class="nav-item" onclick="switchPanel('graph')" id="nav-graph">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 4 8.5 11l7.5 7"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 6h-3a5 5 0 0 0-5 5v2"/><path d="M18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
     Graph
+  </div>
+  <div class="nav-item" onclick="switchPanel('config')" id="nav-config">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
   </div>
 </div>
 
 <div class="main">
+  <!-- Status Panel -->
   <div class="panel active" id="panel-status">
     <div style="margin-bottom: 24px;">
       <h2 style="font-size: 20px; font-weight: 600;">Dashboard</h2>
@@ -134,7 +153,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg>
       Sync Now
     </button>
-
     <div style="margin-top: 28px;">
       <div class="panel-header"><h3>Sync Log</h3></div>
       <table class="log-table">
@@ -144,6 +162,7 @@
     </div>
   </div>
 
+  <!-- Graph Panel -->
   <div class="panel" id="panel-graph">
     <div style="margin-bottom: 16px;">
       <h2 style="font-size: 20px; font-weight: 600;">Note Graph</h2>
@@ -154,11 +173,80 @@
       <div class="graph-tooltip" id="graph-tooltip"></div>
     </div>
   </div>
+
+  <!-- Config Panel -->
+  <div class="panel" id="panel-config">
+    <div style="margin-bottom: 24px;">
+      <h2 style="font-size: 20px; font-weight: 600;">Settings</h2>
+    </div>
+
+    <div class="section-title">Profile</div>
+    <div class="config-box" id="profile-section">
+      <div class="config-row">
+        <label>Active Profile</label>
+        <select id="profile-select" onchange="switchProfile(this.value)"></select>
+      </div>
+    </div>
+
+    <div class="section-title">Peer Connection</div>
+    <div class="config-box">
+      <div class="config-row">
+        <label>Peer ID</label>
+        <input id="cfg-peer-id" placeholder="work-pc">
+      </div>
+      <div class="config-row">
+        <label>Host / IP</label>
+        <input id="cfg-host" placeholder="192.168.1.10">
+      </div>
+      <div class="config-row">
+        <label>Port</label>
+        <input id="cfg-port" placeholder="9001">
+      </div>
+    </div>
+
+    <div class="section-title">Vault</div>
+    <div class="config-box">
+      <div class="config-row">
+        <label>Local Path</label>
+        <input id="cfg-local-path" placeholder="C:\Users\...\Obsidian">
+      </div>
+      <div class="config-row">
+        <label>Sync To (remote)</label>
+        <input id="cfg-sync-to" placeholder="D:\...\Obsidian">
+      </div>
+      <div class="config-row">
+        <label>Include AI Config</label>
+        <select id="cfg-ai-config"><option value="true">Yes</option><option value="false">No</option></select>
+      </div>
+    </div>
+
+    <div class="section-title">Sync</div>
+    <div class="config-box">
+      <div class="config-row">
+        <label>Auto Sync</label>
+        <select id="cfg-auto"><option value="true">On</option><option value="false">Off</option></select>
+      </div>
+      <div class="config-row">
+        <label>Interval (seconds)</label>
+        <input id="cfg-interval" placeholder="30">
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 12px">
+      <button class="btn" onclick="saveConfig()">Save</button>
+      <button class="btn btn-warn" onclick="addProfile()">+ New Profile</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+let currentConfig = null;
+let ws;
+let graphData = null;
+let graphAnimId = null;
+
 // ─── Toast ──────────────────────────────────────────
 function toast(msg, err) {
   const t = document.getElementById('toast');
@@ -173,11 +261,11 @@ function switchPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`nav-${name}`).classList.add('active');
   document.getElementById(`panel-${name}`).classList.add('active');
-  if (name === 'graph') { initGraph(); }
+  if (name === 'graph') initGraph();
+  if (name === 'config') loadConfigToUI();
 }
 
 // ─── WebSocket ──────────────────────────────────────
-let ws;
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
@@ -211,13 +299,15 @@ async function fetchStatus() {
     d.logs.forEach(addLogRow);
   } catch {}
 }
+
 async function fetchNotesCount() {
   try {
     const res = await fetch('/api/graph');
     const d = await res.json();
-    document.getElementById('notes-value').textContent = d.nodes.length;
+    document.getElementById('notes-value').textContent = d.nodes ? d.nodes.length : 0;
   } catch {}
 }
+
 async function triggerSync() {
   const btn = document.getElementById('sync-btn');
   btn.disabled = true; btn.innerHTML = 'Syncing...';
@@ -225,57 +315,148 @@ async function triggerSync() {
   setTimeout(() => { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg> Sync Now'; }, 2000);
 }
 
+// ─── Config ─────────────────────────────────────────
+async function loadConfigToUI() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    currentConfig = cfg;
+
+    const sel = document.getElementById('profile-select');
+    if (cfg.profiles && cfg.profiles.length > 0) {
+      sel.innerHTML = cfg.profiles.map(p => `<option value="${p.name}" ${p.name === cfg.activeProfile ? 'selected' : ''}>${p.name}</option>`).join('');
+      document.getElementById('profile-section').style.display = '';
+      const active = cfg.profiles.find(p => p.name === cfg.activeProfile);
+      if (active && active.peers[0]) {
+        document.getElementById('cfg-peer-id').value = active.peers[0].id || '';
+        document.getElementById('cfg-host').value = active.peers[0].host || '';
+        document.getElementById('cfg-port').value = active.peers[0].port || '';
+      }
+    } else if (cfg.peers && cfg.peers[0]) {
+      document.getElementById('profile-section').style.display = 'none';
+      document.getElementById('cfg-peer-id').value = cfg.peers[0].id || '';
+      document.getElementById('cfg-host').value = cfg.peers[0].host || '';
+      document.getElementById('cfg-port').value = cfg.peers[0].port || '';
+    }
+
+    const v = cfg.vaults && cfg.vaults[0];
+    if (v) {
+      document.getElementById('cfg-local-path').value = v.localPath || '';
+      document.getElementById('cfg-sync-to').value = v.syncTo || '';
+      document.getElementById('cfg-ai-config').value = v.includeAiConfig ? 'true' : 'false';
+    }
+    document.getElementById('cfg-auto').value = cfg.sync?.auto ? 'true' : 'false';
+    document.getElementById('cfg-interval').value = cfg.sync?.intervalSeconds || 30;
+  } catch (e) { console.error('Config load failed', e); }
+}
+
+async function saveConfig() {
+  const update = {};
+  if (currentConfig.profiles && currentConfig.profiles.length > 0) {
+    const profile = currentConfig.profiles.find(p => p.name === currentConfig.activeProfile) || currentConfig.profiles[0];
+    profile.peers = [{
+      id: document.getElementById('cfg-peer-id').value,
+      host: document.getElementById('cfg-host').value,
+      port: parseInt(document.getElementById('cfg-port').value) || 9001,
+    }];
+    update.profiles = currentConfig.profiles;
+  } else {
+    update.peers = [{
+      id: document.getElementById('cfg-peer-id').value,
+      host: document.getElementById('cfg-host').value,
+      port: parseInt(document.getElementById('cfg-port').value) || 9001,
+    }];
+  }
+  const v = {
+    localPath: document.getElementById('cfg-local-path').value,
+    syncTo: document.getElementById('cfg-sync-to').value,
+    includeAiConfig: document.getElementById('cfg-ai-config').value === 'true',
+  };
+  if (currentConfig.vaults && currentConfig.vaults[0]) {
+    Object.assign(currentConfig.vaults[0], v);
+    update.vaults = currentConfig.vaults;
+  } else {
+    update.vaults = [v];
+  }
+  update.sync = {
+    auto: document.getElementById('cfg-auto').value === 'true',
+    intervalSeconds: parseInt(document.getElementById('cfg-interval').value) || 30,
+    conflict: 'last-write-wins',
+    encryption: 'none',
+  };
+  try {
+    await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update) });
+    toast('Config saved! Restart to apply.');
+  } catch { toast('Failed to save config', true); }
+}
+
+async function switchProfile(name) {
+  try {
+    await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    toast(`Switched to ${name}. Restart to use new peer settings.`);
+    loadConfigToUI();
+  } catch { toast('Failed to switch profile', true); }
+}
+
+function addProfile() {
+  const name = prompt('New profile name:');
+  if (!name) return;
+  if (!currentConfig.profiles) currentConfig.profiles = [];
+  currentConfig.profiles.push({ name, peers: [{ id: name, host: '', port: 9001 }] });
+  currentConfig.activeProfile = name;
+  saveConfig().then(() => loadConfigToUI());
+}
+
 // ─── Force Graph ────────────────────────────────────
-let graphData = null;
-let graphAnimId = null;
-
-const LINK_DIST = 120;
-const REPEL = 8000;
-const DAMPING = 0.9;
-const MIN_VEL = 0.1;
-
 async function initGraph() {
   if (graphAnimId) return;
   try {
     const res = await fetch('/api/graph');
     graphData = await res.json();
-  } catch { return; }
-  if (!graphData.nodes.length) { toast('No notes found in vault', true); return; }
+  } catch (e) { console.error('Graph fetch failed', e); toast('Failed to load graph', true); return; }
+  if (!graphData.nodes || graphData.nodes.length === 0) {
+    showGraphEmpty();
+    return;
+  }
   runForceGraph();
+}
+
+function showGraphEmpty() {
+  const container = document.getElementById('graph-container');
+  container.innerHTML = `<div class="graph-empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 6h-3a5 5 0 0 0-5 5v2"/><path d="M18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
+    <div>No wiki-links found in your vault notes.</div>
+    <div style="font-size:12px;">Add [[links]] to your markdown files to see connections.</div>
+  </div>`;
 }
 
 function runForceGraph() {
   const container = document.getElementById('graph-container');
   const canvas = document.getElementById('graph-canvas');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const tooltip = document.getElementById('graph-tooltip');
 
   let W, H;
-
   function resize() {
     const rect = container.getBoundingClientRect();
     W = rect.width; H = rect.height;
-    canvas.width = W * devicePixelRatio;
-    canvas.height = H * devicePixelRatio;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.scale(devicePixelRatio, devicePixelRatio);
+    canvas.width = W; canvas.height = H;
   }
   resize();
   window.addEventListener('resize', resize);
 
   const { nodes, links } = graphData;
   const nodeMap = new Map();
-
-  // init positions
   const cx = W / 2, cy = H / 2;
+
   nodes.forEach((n, i) => {
     const angle = (2 * Math.PI * i) / nodes.length;
     const r = Math.min(W, H) * 0.3;
     n.x = cx + r * Math.cos(angle);
     n.y = cy + r * Math.sin(angle);
     n.vx = 0; n.vy = 0;
-    n.radius = 6;
+    n.radius = Math.max(4, Math.min(8, 40 / Math.sqrt(nodes.length)));
     nodeMap.set(n.id, n);
   });
 
@@ -287,100 +468,82 @@ function runForceGraph() {
     const mx = e.clientX - r.left, my = e.clientY - r.top;
     for (const n of nodes) {
       const dx = mx - n.x, dy = my - n.y;
-      if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
-        dragNode = n; break;
-      }
+      if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) { dragNode = n; break; }
     }
   };
   canvas.onmousemove = e => {
     const r = canvas.getBoundingClientRect();
-    mouseX = e.clientX - r.left;
-    mouseY = e.clientY - r.top;
+    mouseX = e.clientX - r.left; mouseY = e.clientY - r.top;
     if (dragNode) { dragNode.x = mouseX; dragNode.y = mouseY; return; }
-    // tooltip
     let hit = null;
     for (const n of nodes) {
       const dx = mouseX - n.x, dy = mouseY - n.y;
-      if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) { hit = n; break; }
+      if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) { hit = n; break; }
     }
     tooltip.style.display = hit ? 'block' : 'none';
     if (hit) {
       tooltip.textContent = hit.name;
       tooltip.style.left = Math.min(mouseX + 12, W - 150) + 'px';
       tooltip.style.top = (mouseY - 36) + 'px';
-      canvas.style.cursor = 'pointer';
-    } else { canvas.style.cursor = 'grab'; }
+    }
   };
   canvas.onmouseup = () => { dragNode = null; };
   canvas.onmouseleave = () => { dragNode = null; tooltip.style.display = 'none'; };
 
   function simulate() {
-    // repulsion
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
         let dx = b.x - a.x, dy = b.y - a.y;
         let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = REPEL / (dist * dist);
-        const fx = force * (dx / dist), fy = force * (dy / dist);
-        a.vx -= fx; a.vy -= fy;
-        b.vx += fx; b.vy += fy;
+        const force = 6000 / (dist * dist);
+        a.vx -= force * (dx / dist); a.vy -= force * (dy / dist);
+        b.vx += force * (dx / dist); b.vy += force * (dy / dist);
       }
     }
-    // spring
     for (const link of links) {
       const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
       if (!a || !b) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = (dist - LINK_DIST) * 0.03;
+      const force = (dist - 120) * 0.03;
       const fx = force * (dx / dist), fy = force * (dy / dist);
       a.vx += fx; a.vy += fy;
       b.vx -= fx; b.vy -= fy;
     }
-    // center gravity
     for (const n of nodes) {
-      n.vx += (cx - n.x) * 0.002;
-      n.vy += (cy - n.y) * 0.002;
+      n.vx += (cx - n.x) * 0.001;
+      n.vy += (cy - n.y) * 0.001;
     }
-    // apply
     let totalVel = 0;
     for (const n of nodes) {
       if (n === dragNode) continue;
-      n.vx *= DAMPING; n.vy *= DAMPING;
+      n.vx *= 0.9; n.vy *= 0.9;
       n.x += n.vx; n.y += n.vy;
       totalVel += Math.abs(n.vx) + Math.abs(n.vy);
-      // bound
-      n.x = Math.max(20, Math.min(W - 20, n.x));
-      n.y = Math.max(20, Math.min(H - 20, n.y));
+      n.x = Math.max(15, Math.min(W - 15, n.x));
+      n.y = Math.max(15, Math.min(H - 15, n.y));
     }
     draw();
-    if (totalVel > MIN_VEL || dragNode) {
-      graphAnimId = requestAnimationFrame(simulate);
-    } else {
-      graphAnimId = null;
-    }
+    if (totalVel > 0.1 || dragNode) graphAnimId = requestAnimationFrame(simulate);
+    else graphAnimId = null;
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    // links
-    ctx.strokeStyle = '#30363d';
-    ctx.lineWidth = 1.5;
     for (const link of links) {
       const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
       if (!a || !b) continue;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.2; ctx.stroke();
     }
-    // nodes
     for (const n of nodes) {
       const isHovered = tooltip.style.display === 'block' && tooltip.textContent === n.name;
       ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
       ctx.fillStyle = isHovered ? '#58a6ff' : '#3b82f6';
       ctx.fill();
       ctx.strokeStyle = isHovered ? '#79c0ff' : '#1f4a8a';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.lineWidth = isHovered ? 2.5 : 1.5; ctx.stroke();
     }
   }
 
