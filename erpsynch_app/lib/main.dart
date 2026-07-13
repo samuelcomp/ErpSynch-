@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'models/config.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_screen.dart';
+import 'screens/graph_screen.dart';
 import 'screens/config_screen.dart';
 
 void main() {
@@ -58,6 +59,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final _screens = const [
     HomeScreen(),
+    GraphScreen(),
     NotesScreen(),
     ConfigScreen(),
   ];
@@ -71,6 +73,7 @@ class _MainScreenState extends State<MainScreen> {
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.hub_outlined), label: 'Graph'),
           NavigationDestination(icon: Icon(Icons.description_outlined), label: 'Notes'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Config'),
         ],

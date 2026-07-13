@@ -4,7 +4,7 @@ import path from 'path';
 import { URL } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { SyncEngine } from '../sync-engine.js';
-import { AppConfig } from '../types.js';
+import { AppConfig, VaultConfig } from '../types.js';
 import { saveConfig, switchProfile } from '../config.js';
 
 const __dirname = import.meta.dirname;
@@ -168,7 +168,59 @@ export class GuiServer {
       return;
     }
 
+    if (url.pathname === '/api/graph' && method === 'GET') {
+      const data = this.buildGraph();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+
     res.writeHead(404);
     res.end('Not found');
+  }
+
+  private buildGraph(): { nodes: { id: number; name: string; path: string }[]; links: { source: number; target: number }[] } {
+    const vault = this.config?.vaults?.[0];
+    if (!vault) return { nodes: [], links: [] };
+
+    const files: { name: string; fullPath: string; relPath: string }[] = [];
+    const walkDir = (dir: string) => {
+      let entries: fs.Dirent[];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (e.name.startsWith('.') || !e.name.endsWith('.md')) continue;
+        const fullPath = path.join(dir, e.name);
+        if (e.isDirectory()) walkDir(fullPath);
+        else files.push({ name: e.name.replace(/\.md$/, ''), fullPath, relPath: path.relative(vault.localPath, fullPath) });
+      }
+    };
+    try { walkDir(vault.localPath); } catch { return { nodes: [], links: [] }; }
+
+    const nameToId = new Map<string, number>();
+    const nodes = files.map((f, i) => { nameToId.set(f.name, i); return { id: i, name: f.name, path: f.relPath }; });
+
+    const linkSet = new Set<string>();
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi];
+      try {
+        const content = fs.readFileSync(file.fullPath, 'utf-8');
+        const matches = content.matchAll(/\[\[([^\]]+?)]]/g);
+        for (const m of matches) {
+          const target = m[1].split('|')[0].split('#')[0].trim();
+          const targetId = nameToId.get(target);
+          if (targetId !== undefined) {
+            const key = `${fi}-${targetId}`;
+            if (!linkSet.has(key)) { linkSet.add(key); }
+          }
+        }
+      } catch {}
+    }
+
+    const links = [...linkSet].map(k => {
+      const [s, t] = k.split('-').map(Number);
+      return { source: s, target: t };
+    });
+
+    return { nodes, links };
   }
 }

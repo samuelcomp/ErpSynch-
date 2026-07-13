@@ -3,304 +3,395 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ErpSynch Dashboard</title>
+<title>ErpSynch</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0f1117; color: #e1e4e8; padding: 2rem;
+    background: #0a0c10; color: #e1e4e8;
   }
-  h1 { font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-  h1 span { color: #58a6ff; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; }
-  .card-label { font-size: 0.8rem; color: #8b949e; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .card-value { font-size: 1.75rem; font-weight: 600; }
+
+  /* Layout */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+    background: #0d1117; border-right: 1px solid #21262d;
+    padding: 24px 0; display: flex; flex-direction: column;
+  }
+  .sidebar-brand {
+    padding: 0 20px 24px; font-size: 18px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #21262d;
+  }
+  .sidebar-brand span { color: #58a6ff; }
+  .nav-item {
+    padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    color: #8b949e; font-size: 14px; transition: all .15s;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { color: #e1e4e8; background: #161b22; }
+  .nav-item.active { color: #58a6ff; background: #161b22; border-left-color: #58a6ff; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .main { margin-left: 220px; padding: 28px 32px; }
+
+  /* Status cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: #58a6ff33; }
+  .card-label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; }
   .card-value.green { color: #3fb950; }
   .card-value.yellow { color: #d29922; }
   .card-value.red { color: #f85149; }
   .card-value.blue { color: #58a6ff; }
+
   .btn {
-    background: #238636; color: #fff; border: none; border-radius: 6px;
-    padding: 0.75rem 1.5rem; font-size: 1rem; cursor: pointer;
+    background: #238636; color: #fff; border: none; border-radius: 8px;
+    padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; transition: background .15s;
   }
   .btn:hover { background: #2ea043; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-sm { padding: 0.4rem 1rem; font-size: 0.85rem; }
-  .btn-warn { background: #d29922; }
-  .btn-warn:hover { background: #e3b341; }
-  .section-title { font-size: 1rem; margin-bottom: 0.75rem; color: #8b949e; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
-  .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .log-table th { text-align: left; padding: 0.5rem; border-bottom: 1px solid #30363d; color: #8b949e; }
-  .log-table td { padding: 0.5rem; border-bottom: 1px solid #21262d; }
-  .log-type { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Graph */
+  .graph-container {
+    position: relative; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 10px; overflow: hidden; height: 600px;
+  }
+  .graph-container canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  .graph-container canvas:active { cursor: grabbing; }
+  .graph-tooltip {
+    position: absolute; display: none;
+    background: #1c2333; border: 1px solid #30363d; border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 10;
+  }
+
+  /* Log */
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .panel-header h3 { font-size: 15px; font-weight: 600; }
+  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log-table th { text-align: left; padding: 10px 12px; border-bottom: 1px solid #30363d; color: #8b949e; font-weight: 500; }
+  .log-table td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
+  .log-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
   .log-type.sync { background: #1a3a2a; color: #3fb950; }
   .log-type.error { background: #3a1a1a; color: #f85149; }
   .log-type.conflict { background: #3a2a1a; color: #d29922; }
   .log-type.info { background: #1a2a3a; color: #58a6ff; }
-  .config-box { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 1rem; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; margin-top: 1rem; }
-  .config-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-  .config-row label { min-width: 140px; color: #8b949e; font-size: 0.85rem; }
-  .config-row input, .config-row select {
-    flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
-    padding: 0.4rem 0.6rem; color: #e1e4e8; font-size: 0.85rem; font-family: 'SF Mono', monospace;
+
+  /* Panels */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: #238636; color: #fff;
+    padding: 12px 20px; border-radius: 8px; font-size: 13px; opacity: 0;
+    transition: opacity .3s; box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 100;
   }
-  .config-row input:focus { border-color: #58a6ff; outline: none; }
-  .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 1px solid #30363d; }
-  .tab { padding: 0.6rem 1.2rem; cursor: pointer; color: #8b949e; border-bottom: 2px solid transparent; }
-  .tab:hover { color: #e1e4e8; }
-  .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-  .toast { position: fixed; bottom: 2rem; right: 2rem; background: #238636; color: #fff; padding: 0.75rem 1.5rem; border-radius: 6px; font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; }
   .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
-  <h1><span>⬡</span> ErpSynch Dashboard</h1>
 
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('status')" id="tab-status">Status</div>
-    <div class="tab" onclick="switchTab('config')" id="tab-config">Config</div>
+<div class="sidebar">
+  <div class="sidebar-brand"><span>&#9673;</span> ErpSynch</div>
+  <div class="nav-item active" onclick="switchPanel('status')" id="nav-status">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/></svg>
+    Status
   </div>
+  <div class="nav-item" onclick="switchPanel('graph')" id="nav-graph">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 4 8.5 11l7.5 7"/></svg>
+    Graph
+  </div>
+</div>
 
-  <div class="tab-content active" id="panel-status">
+<div class="main">
+  <div class="panel active" id="panel-status">
+    <div style="margin-bottom: 24px;">
+      <h2 style="font-size: 20px; font-weight: 600;">Dashboard</h2>
+    </div>
     <div class="cards">
       <div class="card">
-        <div class="card-label">Status</div>
-        <div class="card-value green" id="status-value">Starting...</div>
+        <div class="card-label">Sync Engine</div>
+        <div class="card-value green" id="status-value">Running</div>
       </div>
       <div class="card">
-        <div class="card-label">Peer Connection</div>
-        <div class="card-value yellow" id="peer-value">Waiting...</div>
+        <div class="card-label">Peer</div>
+        <div class="card-value yellow" id="peer-value">Disconnected</div>
       </div>
       <div class="card">
-        <div class="card-label">Pending Files</div>
+        <div class="card-label">Pending</div>
         <div class="card-value blue" id="pending-value">0</div>
       </div>
       <div class="card">
-        <div class="card-label">Actions</div>
-        <button class="btn" id="sync-btn" onclick="triggerSync()">Sync Now</button>
+        <div class="card-label">Notes</div>
+        <div class="card-value blue" id="notes-value">0</div>
       </div>
     </div>
+    <button class="btn" id="sync-btn" onclick="triggerSync()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg>
+      Sync Now
+    </button>
 
-    <div class="section-title">Recent Sync Log</div>
-    <table class="log-table">
-      <thead><tr><th>Time</th><th>Type</th><th>Message</th></tr></thead>
-      <tbody id="log-body"></tbody>
-    </table>
-  </div>
-
-  <div class="tab-content" id="panel-config">
-    <div class="section-title">Profile</div>
-    <div class="config-box">
-      <div class="config-row" id="profile-row">
-        <label>Active Profile</label>
-        <select id="profile-select" onchange="switchProfile(this.value)"></select>
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top:1.5rem">Peer</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Peer ID</label>
-        <input id="cfg-peer-id" placeholder="work-pc">
-      </div>
-      <div class="config-row">
-        <label>Host / IP</label>
-        <input id="cfg-host" placeholder="192.168.1.10">
-      </div>
-      <div class="config-row">
-        <label>Port</label>
-        <input id="cfg-port" placeholder="9001">
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top:1.5rem">Vault</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Local Path</label>
-        <input id="cfg-local-path" placeholder="C:\Users\...\Obsidian">
-      </div>
-      <div class="config-row">
-        <label>Sync To (remote)</label>
-        <input id="cfg-sync-to" placeholder="D:\...\Obsidian">
-      </div>
-      <div class="config-row">
-        <label>Include AI Config</label>
-        <select id="cfg-ai-config"><option value="true">Yes</option><option value="false">No</option></select>
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top:1.5rem">Sync Settings</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Auto Sync</label>
-        <select id="cfg-auto"><option value="true">On</option><option value="false">Off</option></select>
-      </div>
-      <div class="config-row">
-        <label>Interval (seconds)</label>
-        <input id="cfg-interval" placeholder="30">
-      </div>
-    </div>
-
-    <div style="margin-top:1rem; display:flex; gap:0.75rem">
-      <button class="btn btn-sm" onclick="saveConfig()">Save Config</button>
-      <button class="btn btn-sm btn-warn" onclick="addProfile()">+ New Profile</button>
+    <div style="margin-top: 28px;">
+      <div class="panel-header"><h3>Sync Log</h3></div>
+      <table class="log-table">
+        <thead><tr><th>Time</th><th>Type</th><th>Message</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
+  <div class="panel" id="panel-graph">
+    <div style="margin-bottom: 16px;">
+      <h2 style="font-size: 20px; font-weight: 600;">Note Graph</h2>
+      <p style="color: #8b949e; font-size: 13px; margin-top: 4px;">Wiki-link connections between your notes</p>
+    </div>
+    <div class="graph-container" id="graph-container">
+      <canvas id="graph-canvas"></canvas>
+      <div class="graph-tooltip" id="graph-tooltip"></div>
+    </div>
+  </div>
+</div>
 
-  <script>
-    let currentConfig = null;
-    let ws;
+<div class="toast" id="toast"></div>
 
-    function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+<script>
+// ─── Toast ──────────────────────────────────────────
+function toast(msg, err) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  t.style.background = err ? '#da3633' : '#238636';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
 
-    function switchTab(name) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
-      document.getElementById(`tab-${name}`).classList.add('active');
-      document.getElementById(`panel-${name}`).classList.add('active');
-      if (name === 'config') loadConfigToUI();
-    }
+// ─── Panels ─────────────────────────────────────────
+function switchPanel(name) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`nav-${name}`).classList.add('active');
+  document.getElementById(`panel-${name}`).classList.add('active');
+  if (name === 'graph') { initGraph(); }
+}
 
-    function connectWs() {
-      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${proto}//${location.host}/ws`);
-      ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'log') addLogRow(m.data); };
-      ws.onclose = () => setTimeout(connectWs, 3000);
-    }
+// ─── WebSocket ──────────────────────────────────────
+let ws;
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onmessage = e => { const m = JSON.parse(e.data); if (m.type === 'log') addLogRow(m.data); };
+  ws.onclose = () => setTimeout(connectWs, 3000);
+}
 
-    function addLogRow(entry) {
-      const tbody = document.getElementById('log-body');
-      const tr = document.createElement('tr');
-      const time = new Date(entry.time).toLocaleTimeString();
-      tr.innerHTML = `<td>${time}</td><td><span class="log-type ${entry.type}">${entry.type}</span></td><td>${esc(entry.message)}</td>`;
-      tbody.prepend(tr);
-      while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
-    }
+// ─── Log ────────────────────────────────────────────
+function addLogRow(entry) {
+  const tbody = document.getElementById('log-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td style="color:#8b949e">${new Date(entry.time).toLocaleTimeString()}</td><td><span class="log-type ${entry.type}">${entry.type}</span></td><td>${esc(entry.message)}</td>`;
+  tbody.prepend(tr);
+  while (tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
+}
+function esc(s) { return s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]); }
 
-    function esc(s) { return s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]); }
+// ─── Status ─────────────────────────────────────────
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const d = await res.json();
+    document.getElementById('status-value').textContent = d.running ? 'Running' : 'Stopped';
+    document.getElementById('status-value').className = 'card-value ' + (d.running ? 'green' : 'red');
+    document.getElementById('peer-value').textContent = d.connected ? 'Connected' : 'Disconnected';
+    document.getElementById('peer-value').className = 'card-value ' + (d.connected ? 'green' : 'yellow');
+    document.getElementById('pending-value').textContent = d.pendingCount;
+    document.getElementById('sync-btn').disabled = !d.running;
+    const tbody = document.getElementById('log-body');
+    tbody.innerHTML = '';
+    d.logs.forEach(addLogRow);
+  } catch {}
+}
+async function fetchNotesCount() {
+  try {
+    const res = await fetch('/api/graph');
+    const d = await res.json();
+    document.getElementById('notes-value').textContent = d.nodes.length;
+  } catch {}
+}
+async function triggerSync() {
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true; btn.innerHTML = 'Syncing...';
+  try { await fetch('/api/sync', { method: 'POST' }); toast('Sync complete'); } catch { toast('Sync failed', true); }
+  setTimeout(() => { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg> Sync Now'; }, 2000);
+}
 
-    async function fetchStatus() {
-      try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        document.getElementById('status-value').textContent = data.running ? 'Running' : 'Stopped';
-        document.getElementById('status-value').className = 'card-value ' + (data.running ? 'green' : 'red');
-        document.getElementById('peer-value').textContent = data.connected ? 'Connected' : 'Disconnected';
-        document.getElementById('peer-value').className = 'card-value ' + (data.connected ? 'green' : 'yellow');
-        document.getElementById('pending-value').textContent = data.pendingCount;
-        document.getElementById('sync-btn').disabled = false;
-        const tbody = document.getElementById('log-body');
-        tbody.innerHTML = '';
-        data.logs.forEach(addLogRow);
-      } catch {}
-    }
+// ─── Force Graph ────────────────────────────────────
+let graphData = null;
+let graphAnimId = null;
 
-    async function triggerSync() {
-      const btn = document.getElementById('sync-btn');
-      btn.disabled = true; btn.textContent = 'Syncing...';
-      try { await fetch('/api/sync', { method: 'POST' }); } catch {}
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'Sync Now'; }, 2000);
-    }
+const LINK_DIST = 120;
+const REPEL = 8000;
+const DAMPING = 0.9;
+const MIN_VEL = 0.1;
 
-    async function loadConfigToUI() {
-      try {
-        const res = await fetch('/api/config');
-        const cfg = await res.json();
-        currentConfig = cfg;
+async function initGraph() {
+  if (graphAnimId) return;
+  try {
+    const res = await fetch('/api/graph');
+    graphData = await res.json();
+  } catch { return; }
+  if (!graphData.nodes.length) { toast('No notes found in vault', true); return; }
+  runForceGraph();
+}
 
-        const sel = document.getElementById('profile-select');
-        if (cfg.profiles && cfg.profiles.length > 0) {
-          sel.innerHTML = cfg.profiles.map(p => `<option value="${p.name}" ${p.name === cfg.activeProfile ? 'selected' : ''}>${p.name}</option>`).join('');
-          document.getElementById('profile-row').style.display = '';
-          const active = cfg.profiles.find(p => p.name === cfg.activeProfile);
-          if (active && active.peers[0]) {
-            document.getElementById('cfg-peer-id').value = active.peers[0].id || '';
-            document.getElementById('cfg-host').value = active.peers[0].host || '';
-            document.getElementById('cfg-port').value = active.peers[0].port || '';
-          }
-        } else if (cfg.peers && cfg.peers[0]) {
-          document.getElementById('profile-row').style.display = 'none';
-          document.getElementById('cfg-peer-id').value = cfg.peers[0].id || '';
-          document.getElementById('cfg-host').value = cfg.peers[0].host || '';
-          document.getElementById('cfg-port').value = cfg.peers[0].port || '';
-        }
+function runForceGraph() {
+  const container = document.getElementById('graph-container');
+  const canvas = document.getElementById('graph-canvas');
+  const ctx = canvas.getContext('2d');
+  const tooltip = document.getElementById('graph-tooltip');
 
-        const v = cfg.vaults && cfg.vaults[0];
-        if (v) {
-          document.getElementById('cfg-local-path').value = v.localPath || '';
-          document.getElementById('cfg-sync-to').value = v.syncTo || '';
-          document.getElementById('cfg-ai-config').value = v.includeAiConfig ? 'true' : 'false';
-        }
-        document.getElementById('cfg-auto').value = cfg.sync?.auto ? 'true' : 'false';
-        document.getElementById('cfg-interval').value = cfg.sync?.intervalSeconds || 30;
-      } catch {}
-    }
+  let W, H;
 
-    async function saveConfig() {
-      const update = {};
-      if (currentConfig.profiles && currentConfig.profiles.length > 0) {
-        const profile = currentConfig.profiles.find(p => p.name === currentConfig.activeProfile) || currentConfig.profiles[0];
-        profile.peers = [{
-          id: document.getElementById('cfg-peer-id').value,
-          host: document.getElementById('cfg-host').value,
-          port: parseInt(document.getElementById('cfg-port').value) || 9001,
-        }];
-        update.profiles = currentConfig.profiles;
-      } else {
-        update.peers = [{
-          id: document.getElementById('cfg-peer-id').value,
-          host: document.getElementById('cfg-host').value,
-          port: parseInt(document.getElementById('cfg-port').value) || 9001,
-        }];
+  function resize() {
+    const rect = container.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const { nodes, links } = graphData;
+  const nodeMap = new Map();
+
+  // init positions
+  const cx = W / 2, cy = H / 2;
+  nodes.forEach((n, i) => {
+    const angle = (2 * Math.PI * i) / nodes.length;
+    const r = Math.min(W, H) * 0.3;
+    n.x = cx + r * Math.cos(angle);
+    n.y = cy + r * Math.sin(angle);
+    n.vx = 0; n.vy = 0;
+    n.radius = 6;
+    nodeMap.set(n.id, n);
+  });
+
+  let dragNode = null;
+  let mouseX = 0, mouseY = 0;
+
+  canvas.onmousedown = e => {
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    for (const n of nodes) {
+      const dx = mx - n.x, dy = my - n.y;
+      if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
+        dragNode = n; break;
       }
-      const v = {
-        localPath: document.getElementById('cfg-local-path').value,
-        syncTo: document.getElementById('cfg-sync-to').value,
-        includeAiConfig: document.getElementById('cfg-ai-config').value === 'true',
-      };
-      if (currentConfig.vaults && currentConfig.vaults[0]) {
-        Object.assign(currentConfig.vaults[0], v);
-        update.vaults = currentConfig.vaults;
-      } else {
-        update.vaults = [v];
+    }
+  };
+  canvas.onmousemove = e => {
+    const r = canvas.getBoundingClientRect();
+    mouseX = e.clientX - r.left;
+    mouseY = e.clientY - r.top;
+    if (dragNode) { dragNode.x = mouseX; dragNode.y = mouseY; return; }
+    // tooltip
+    let hit = null;
+    for (const n of nodes) {
+      const dx = mouseX - n.x, dy = mouseY - n.y;
+      if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) { hit = n; break; }
+    }
+    tooltip.style.display = hit ? 'block' : 'none';
+    if (hit) {
+      tooltip.textContent = hit.name;
+      tooltip.style.left = Math.min(mouseX + 12, W - 150) + 'px';
+      tooltip.style.top = (mouseY - 36) + 'px';
+      canvas.style.cursor = 'pointer';
+    } else { canvas.style.cursor = 'grab'; }
+  };
+  canvas.onmouseup = () => { dragNode = null; };
+  canvas.onmouseleave = () => { dragNode = null; tooltip.style.display = 'none'; };
+
+  function simulate() {
+    // repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = REPEL / (dist * dist);
+        const fx = force * (dx / dist), fy = force * (dy / dist);
+        a.vx -= fx; a.vy -= fy;
+        b.vx += fx; b.vy += fy;
       }
-      update.sync = {
-        auto: document.getElementById('cfg-auto').value === 'true',
-        intervalSeconds: parseInt(document.getElementById('cfg-interval').value) || 30,
-        conflict: 'last-write-wins',
-        encryption: 'none',
-      };
-      try {
-        await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update) });
-        toast('Config saved! Restart the agent for changes to take effect.');
-      } catch { toast('Failed to save config'); }
     }
-
-    async function switchProfile(name) {
-      try {
-        await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-        toast(`Switched to profile: ${name}. Restart agent to use new peer settings.`);
-        loadConfigToUI();
-      } catch { toast('Failed to switch profile'); }
+    // spring
+    for (const link of links) {
+      const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const force = (dist - LINK_DIST) * 0.03;
+      const fx = force * (dx / dist), fy = force * (dy / dist);
+      a.vx += fx; a.vy += fy;
+      b.vx -= fx; b.vy -= fy;
     }
-
-    function addProfile() {
-      const name = prompt('New profile name:');
-      if (!name) return;
-      if (!currentConfig.profiles) currentConfig.profiles = [];
-      currentConfig.profiles.push({ name, peers: [{ id: name, host: '', port: 9001 }] });
-      currentConfig.activeProfile = name;
-      saveConfig().then(() => loadConfigToUI());
+    // center gravity
+    for (const n of nodes) {
+      n.vx += (cx - n.x) * 0.002;
+      n.vy += (cy - n.y) * 0.002;
     }
+    // apply
+    let totalVel = 0;
+    for (const n of nodes) {
+      if (n === dragNode) continue;
+      n.vx *= DAMPING; n.vy *= DAMPING;
+      n.x += n.vx; n.y += n.vy;
+      totalVel += Math.abs(n.vx) + Math.abs(n.vy);
+      // bound
+      n.x = Math.max(20, Math.min(W - 20, n.x));
+      n.y = Math.max(20, Math.min(H - 20, n.y));
+    }
+    draw();
+    if (totalVel > MIN_VEL || dragNode) {
+      graphAnimId = requestAnimationFrame(simulate);
+    } else {
+      graphAnimId = null;
+    }
+  }
 
-    fetchStatus();
-    setInterval(fetchStatus, 3000);
-    connectWs();
-  </script>
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    // links
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1.5;
+    for (const link of links) {
+      const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
+      if (!a || !b) continue;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    // nodes
+    for (const n of nodes) {
+      const isHovered = tooltip.style.display === 'block' && tooltip.textContent === n.name;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+      ctx.fillStyle = isHovered ? '#58a6ff' : '#3b82f6';
+      ctx.fill();
+      ctx.strokeStyle = isHovered ? '#79c0ff' : '#1f4a8a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  graphAnimId = requestAnimationFrame(simulate);
+}
+
+// ─── Init ───────────────────────────────────────────
+fetchStatus();
+fetchNotesCount();
+setInterval(fetchStatus, 3000);
+connectWs();
+</script>
 </body>
 </html>
