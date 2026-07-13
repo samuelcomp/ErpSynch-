@@ -8,6 +8,7 @@ import { AppConfig, VaultConfig } from '../types.js';
 import { saveConfig, switchProfile } from '../config.js';
 
 const __dirname = import.meta.dirname;
+const __projectRoot = path.resolve(__dirname, '../..');
 
 interface LogEntry {
   time: string;
@@ -82,7 +83,7 @@ export class GuiServer {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (url.pathname === '/' && method === 'GET') {
-      const htmlPath = path.join(__dirname, 'dashboard.html');
+      const htmlPath = path.join(__projectRoot, 'src', 'gui', 'dashboard.html');
       try {
         const html = fs.readFileSync(htmlPath, 'utf-8');
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
