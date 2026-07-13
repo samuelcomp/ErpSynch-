@@ -33,16 +33,20 @@ program
     const watcher = new FileWatcher(vault.localPath, { ignore });
     const engine = new SyncEngine(vault.localPath, config.vaults, config.sync, watcher);
 
-    const peer = config.peers[0];
-    if (peer && peer.host) {
-      const signaling = new SignalingClient(
-        `ws://${peer.host}:${peer.port || 9001}`,
-        peer.id
-      );
-      await signaling.connect();
-
-      const transport = new Transport(signaling, true, config.transport);
-      engine.setTransport(transport);
+    const peer = config.peers?.[0];
+    if (peer?.host) {
+      try {
+        const signaling = new SignalingClient(
+          `ws://${peer.host}:${peer.port || 9001}`,
+          peer.id
+        );
+        await signaling.connect();
+        const transport = new Transport(signaling, true, config.transport);
+        engine.setTransport(transport);
+        console.log(`Connected to peer: ${peer.id} (${peer.host})`);
+      } catch {
+        console.log(`Peer ${peer.id} offline — will retry. Start agent on other PC.`);
+      }
     }
 
     await engine.start();
@@ -57,7 +61,7 @@ program
 
     process.on('SIGINT', async () => {
       console.log('\nShutting down...');
-      await engine.stop();
+      if (engine) await engine.stop();
       process.exit(0);
     });
   });
@@ -99,6 +103,11 @@ program
     const config = loadConfig(configPath);
     const vault = config.vaults[0];
 
+    if (!vault?.localPath) {
+      console.error('Error: config.yaml missing vault local_path. Edit config.yaml and set your vault path.');
+      process.exit(1);
+    }
+
     console.log(`Starting sync agent for: ${vault.localPath}`);
 
     const ignore = vault.includeAiConfig
@@ -107,15 +116,20 @@ program
     const watcher = new FileWatcher(vault.localPath, { ignore });
     const engine = new SyncEngine(vault.localPath, config.vaults, config.sync, watcher);
 
-    const peer = config.peers[0];
-    if (peer && peer.host) {
-      const signaling = new SignalingClient(
-        `ws://${peer.host}:${peer.port || 9001}`,
-        peer.id
-      );
-      await signaling.connect();
-      const transport = new Transport(signaling, true, config.transport);
-      engine.setTransport(transport);
+    const peer = config.peers?.[0];
+    if (peer?.host) {
+      try {
+        const signaling = new SignalingClient(
+          `ws://${peer.host}:${peer.port || 9001}`,
+          peer.id
+        );
+        await signaling.connect();
+        const transport = new Transport(signaling, true, config.transport);
+        engine.setTransport(transport);
+        console.log(`Connected to peer: ${peer.id} (${peer.host})`);
+      } catch {
+        console.log(`Peer ${peer.id} offline — will retry. Start agent on other PC.`);
+      }
     }
 
     await engine.start();

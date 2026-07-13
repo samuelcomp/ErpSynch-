@@ -1,10 +1,24 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
-import { AppConfig, PeerConfig } from './types.js';
+import { AppConfig } from './types.js';
+
+function toCamelCase(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  if (obj !== null && typeof obj === 'object') {
+    const result: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      const camel = key.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+      result[camel] = toCamelCase(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+}
 
 export function loadConfig(configPath: string): AppConfig {
   const raw = fs.readFileSync(configPath, 'utf-8');
-  const config = yaml.load(raw) as AppConfig;
+  const parsed = yaml.load(raw) as Record<string, any>;
+  const config = toCamelCase(parsed) as AppConfig;
   config.configPath = configPath;
 
   if (!config || !config.vaults || config.vaults.length === 0) {

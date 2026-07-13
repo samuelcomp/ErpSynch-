@@ -1,0 +1,31 @@
+profiles:
+  - name: home
+    peers:
+      - id: home-pc
+        host: 192.168.1.10
+        port: 9001
+  - name: office
+    peers:
+      - id: office-pc
+        host: 10.0.0.50
+        port: 9001
+
+activeProfile: home
+
+vaults:
+  - local_path: C:\Users\Sami\SamiBrain\ERPsynch
+    sync_to: D:\Obsidian\ERPsynch
+    include_ai_config: true
+
+sync:
+  auto: true
+  interval_seconds: 30
+  debounce_ms: 2000
+  conflict: last-write-wins
+  encryption: none
+
+transport:
+  type: webrtc
+  stun_servers:
+    - stun:stun.l.google.com:19302
+  turn_servers: []
