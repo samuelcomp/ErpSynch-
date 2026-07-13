@@ -15,7 +15,7 @@ export interface WatcherEvent {
 }
 
 export class FileWatcher extends EventEmitter {
-  private watcher: chokidar.FSWatcher | null = null;
+  private watcher: ReturnType<typeof chokidar.watch> | null = null;
   private basePath: string;
   private options: WatcherOptions;
 

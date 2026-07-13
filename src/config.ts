@@ -25,21 +25,19 @@ export function loadConfig(configPath: string): AppConfig {
     throw new Error('Config must have at least one vault defined');
   }
 
-  config.sync = {
+  config.sync = Object.assign({
     auto: true,
     intervalSeconds: 30,
     debounceMs: 2000,
     conflict: 'last-write-wins',
     encryption: 'none',
-    ...config.sync,
-  };
+  }, config.sync);
 
-  config.transport = {
+  config.transport = Object.assign({
     type: 'webrtc',
     stunServers: ['stun:stun.l.google.com:19302'],
     turnServers: [],
-    ...config.transport,
-  };
+  }, config.transport);
 
   resolveActiveProfile(config);
   return config;

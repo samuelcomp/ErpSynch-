@@ -40,13 +40,6 @@ export interface TransportConfig {
   turnServers: string[];
 }
 
-export interface AppConfig {
-  peers: PeerConfig[];
-  vaults: VaultConfig[];
-  sync: SyncConfig;
-  transport: TransportConfig;
-}
-
 export interface FileChange {
   path: string;
   type: 'create' | 'modify' | 'delete';
