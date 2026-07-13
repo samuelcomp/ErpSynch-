@@ -409,7 +409,11 @@ function addProfile() {
 
 // ─── Force Graph ────────────────────────────────────
 async function initGraph() {
-  if (graphAnimId) return;
+  // Cancel previous animation
+  if (graphAnimId) { cancelAnimationFrame(graphAnimId); graphAnimId = null; }
+  // Reset canvas container
+  const container = document.getElementById('graph-container');
+  container.innerHTML = '<canvas id="graph-canvas"></canvas><div class="graph-tooltip" id="graph-tooltip"></div>';
   try {
     const res = await fetch('/api/graph');
     graphData = await res.json();

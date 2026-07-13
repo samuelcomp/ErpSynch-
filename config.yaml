@@ -13,7 +13,7 @@ profiles:
 activeProfile: home
 
 vaults:
-  - local_path: C:\Users\Sami\SamiBrain\ERPsynch
+  - local_path: C:\Users\Sami\Desktop\SamiBrain\ERPsynch
     sync_to: D:\Obsidian\ERPsynch
     include_ai_config: true
 
