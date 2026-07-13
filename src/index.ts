@@ -4,6 +4,7 @@ import { FileWatcher } from './watcher.js';
 import { Transport } from './transport.js';
 import { SignalingClient } from './signaling.js';
 import { SyncEngine } from './sync-engine.js';
+import { GuiServer } from './gui/server.js';
 import path from 'path';
 
 const program = new Command();
@@ -17,6 +18,8 @@ program
   .command('start')
   .description('Start the sync agent')
   .option('-c, --config <path>', 'Config file path', 'config.yaml')
+  .option('-w, --web', 'Launch web dashboard')
+  .option('-p, --port <number>', 'Dashboard port', '3456')
   .action(async (options) => {
     const configPath = path.resolve(options.config);
     const config = loadConfig(configPath);
@@ -44,6 +47,12 @@ program
 
     await engine.start();
     console.log('Sync agent running. Press Ctrl+C to stop.');
+
+    if (options.web) {
+      const gui = new GuiServer(parseInt(options.port, 10));
+      gui.setEngine(engine);
+      gui.start();
+    }
 
     process.on('SIGINT', async () => {
       console.log('\nShutting down...');
@@ -76,6 +85,49 @@ program
     console.log(`Conflict: ${config.sync.conflict}`);
     config.vaults.forEach((v, i) => {
       console.log(`  [${i}] ${v.localPath} \u2194 ${v.syncTo}`);
+    });
+  });
+
+program
+  .command('gui')
+  .description('Start sync agent with web dashboard')
+  .option('-c, --config <path>', 'Config file path', 'config.yaml')
+  .option('-p, --port <number>', 'Dashboard port', '3456')
+  .action(async (options) => {
+    const configPath = path.resolve(options.config);
+    const config = loadConfig(configPath);
+    const vault = config.vaults[0];
+
+    console.log(`Starting sync agent for: ${vault.localPath}`);
+
+    const ignore = vault.includeAiConfig
+      ? ['.obsidian', '.git', 'node_modules']
+      : ['.obsidian', '.git', 'node_modules', '.opencode', '.claude', '.cursor'];
+    const watcher = new FileWatcher(vault.localPath, { ignore });
+    const engine = new SyncEngine(vault.localPath, config.vaults, config.sync, watcher);
+
+    const peer = config.peers[0];
+    if (peer && peer.host) {
+      const signaling = new SignalingClient(
+        `ws://${peer.host}:${peer.port || 9001}`,
+        peer.id
+      );
+      await signaling.connect();
+      const transport = new Transport(signaling, true, config.transport);
+      engine.setTransport(transport);
+    }
+
+    await engine.start();
+
+    const gui = new GuiServer(parseInt(options.port, 10));
+    gui.setEngine(engine);
+    gui.start();
+
+    process.on('SIGINT', async () => {
+      console.log('\nShutting down...');
+      gui.stop();
+      await engine.stop();
+      process.exit(0);
     });
   });
 
