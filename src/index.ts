@@ -5,6 +5,8 @@ import { Transport } from './transport.js';
 import { SignalingClient } from './signaling.js';
 import { SyncEngine } from './sync-engine.js';
 import { GuiServer } from './gui/server.js';
+import { LocalDiscovery } from './discovery.js';
+import fs from 'fs';
 import path from 'path';
 
 const program = new Command();
@@ -24,6 +26,12 @@ program
     const configPath = path.resolve(options.config);
     const config = loadConfig(configPath);
     const vault = config.vaults[0];
+
+    if (!vault?.localPath || !fs.existsSync(vault.localPath)) {
+      console.error(`Error: vault path not found: ${vault?.localPath || '(none)'}`);
+      console.error('Edit config.yaml or use "gui" command to select via dashboard.');
+      process.exit(1);
+    }
 
     console.log(`Starting sync agent for: ${vault.localPath}`);
 
@@ -56,7 +64,17 @@ program
       const gui = new GuiServer(parseInt(options.port, 10));
       gui.setEngine(engine);
       gui.setConfig(config, configPath);
+      
+      const discovery = new LocalDiscovery(peer?.id || 'unknown', peer?.port || 9001);
+      discovery.start();
+      gui.setDiscovery(discovery);
+      
       gui.start();
+
+      process.on('SIGINT', async () => {
+        discovery.stop();
+        // ... handled below
+      });
     }
 
     process.on('SIGINT', async () => {
@@ -103,9 +121,26 @@ program
     const config = loadConfig(configPath);
     const vault = config.vaults[0];
 
+    const gui = new GuiServer(parseInt(options.port, 10));
+    gui.setConfig(config, configPath);
+
+    const discovery = new LocalDiscovery(config.peers?.[0]?.id || 'unknown', config.peers?.[0]?.port || 9001);
+    discovery.start();
+    gui.setDiscovery(discovery);
+
     if (!vault?.localPath) {
-      console.error('Error: config.yaml missing vault local_path. Edit config.yaml and set your vault path.');
-      process.exit(1);
+      console.log('No vault path configured. Use the dashboard to select one.');
+      gui.start();
+      process.on('SIGINT', () => { discovery.stop(); gui.stop(); process.exit(0); });
+      return;
+    }
+
+    if (!fs.existsSync(vault.localPath)) {
+      console.log(`Vault path not found: ${vault.localPath}`);
+      console.log('Use the dashboard file browser to select a valid directory.');
+      gui.start();
+      process.on('SIGINT', () => { discovery.stop(); gui.stop(); process.exit(0); });
+      return;
     }
 
     console.log(`Starting sync agent for: ${vault.localPath}`);
@@ -134,13 +169,12 @@ program
 
     await engine.start();
 
-    const gui = new GuiServer(parseInt(options.port, 10));
     gui.setEngine(engine);
-    gui.setConfig(config, configPath);
     gui.start();
 
     process.on('SIGINT', async () => {
       console.log('\nShutting down...');
+      discovery.stop();
       gui.stop();
       await engine.stop();
       process.exit(0);

@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { SyncEngine } from '../sync-engine.js';
 import { AppConfig, VaultConfig } from '../types.js';
 import { saveConfig, switchProfile } from '../config.js';
+import { LocalDiscovery, DiscoveredPeer } from '../discovery.js';
 
 const __dirname = import.meta.dirname;
 const __projectRoot = path.resolve(__dirname, '../..');
@@ -25,6 +26,7 @@ export class GuiServer {
   private config: AppConfig | null = null;
   private configPath: string = '';
   private clients: Set<WebSocket> = new Set();
+  private discovery: LocalDiscovery | null = null;
 
   constructor(port = 3456) {
     this.port = port;
@@ -53,6 +55,13 @@ export class GuiServer {
   setConfig(config: AppConfig, configPath: string): void {
     this.config = config;
     this.configPath = configPath;
+  }
+
+  setDiscovery(discovery: LocalDiscovery): void {
+    this.discovery = discovery;
+    this.discovery.on('peer:discovered', (peer: DiscoveredPeer) => {
+      this.addLog('info', `Discovered local peer: ${peer.id} at ${peer.host}:${peer.port}`);
+    });
   }
 
   private addLog(type: LogEntry['type'], message: string): void {
@@ -173,6 +182,36 @@ export class GuiServer {
       const data = this.buildGraph();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
+      return;
+    }
+
+    if (url.pathname === '/api/peers' && method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(this.discovery ? this.discovery.getPeers() : []));
+      return;
+    }
+
+    if (url.pathname === '/api/fs/list' && method === 'GET') {
+      const dirParam = url.searchParams.get('dir') || 'C:\\Users';
+      try {
+        const targetDir = path.resolve(dirParam);
+        const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+        const folders = entries
+          .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+          .map(e => ({ name: e.name, path: path.join(targetDir, e.name) }));
+        
+        // Add parent directory link
+        const parentPath = path.dirname(targetDir);
+        if (parentPath !== targetDir) {
+          folders.unshift({ name: '..', path: parentPath });
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ current: targetDir, folders }));
+      } catch (e: any) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: e.message }));
+      }
       return;
     }
 

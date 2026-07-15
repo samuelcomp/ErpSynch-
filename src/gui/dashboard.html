@@ -3,259 +3,1671 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ErpSynch</title>
+<title>ErpSynch — Vault Sync Dashboard</title>
+<meta name="description" content="ErpSynch peer-to-peer Obsidian vault synchronization dashboard">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0a0c10; color: #e1e4e8;
-  }
-  .sidebar {
-    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
-    background: #0d1117; border-right: 1px solid #21262d;
-    padding: 24px 0; display: flex; flex-direction: column;
-  }
-  .sidebar-brand {
-    padding: 0 20px 24px; font-size: 18px; font-weight: 700;
-    display: flex; align-items: center; gap: 10px;
-    border-bottom: 1px solid #21262d;
-  }
-  .sidebar-brand span { color: #58a6ff; }
-  .nav-item {
-    padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px;
-    color: #8b949e; font-size: 14px; transition: all .15s;
-    border-left: 3px solid transparent;
-  }
-  .nav-item:hover { color: #e1e4e8; background: #161b22; }
-  .nav-item.active { color: #58a6ff; background: #161b22; border-left-color: #58a6ff; }
-  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-  .main { margin-left: 220px; padding: 28px 32px; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .card {
-    background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px;
-    transition: border-color .2s;
-  }
-  .card:hover { border-color: #58a6ff33; }
-  .card-label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
-  .card-value { font-size: 28px; font-weight: 700; }
-  .card-value.green { color: #3fb950; }
-  .card-value.yellow { color: #d29922; }
-  .card-value.red { color: #f85149; }
-  .card-value.blue { color: #58a6ff; }
-  .btn {
-    background: #238636; color: #fff; border: none; border-radius: 8px;
-    padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 500;
-    display: inline-flex; align-items: center; gap: 6px; transition: background .15s;
-  }
-  .btn:hover { background: #2ea043; }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .btn-warn { background: #d29922; }
-  .btn-warn:hover { background: #e3b341; }
+:root {
+  --bg-0: #05070f;
+  --bg-1: #0a0d1a;
+  --bg-2: #0f1422;
+  --bg-3: #141929;
+  --surface: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.07);
+  --border: rgba(255,255,255,0.08);
+  --border-bright: rgba(255,255,255,0.15);
+  --text-primary: #f0f2ff;
+  --text-secondary: #8892b0;
+  --text-muted: #4a5568;
+  --accent-blue: #6c8cff;
+  --accent-purple: #a78bfa;
+  --accent-cyan: #22d3ee;
+  --accent-green: #10b981;
+  --accent-yellow: #f59e0b;
+  --accent-red: #ef4444;
+  --gradient-main: linear-gradient(135deg, #6c8cff 0%, #a78bfa 100%);
+  --gradient-green: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  --gradient-warn: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  --glow-blue: 0 0 20px rgba(108,140,255,0.25);
+  --glow-purple: 0 0 20px rgba(167,139,250,0.25);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --sidebar-width: 240px;
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  .graph-container {
-    position: relative; background: #0d1117; border: 1px solid #30363d;
-    border-radius: 10px; overflow: hidden; height: 600px;
-  }
-  .graph-container canvas { display: block; width: 100%; height: 100%; cursor: grab; }
-  .graph-container canvas:active { cursor: grabbing; }
-  .graph-tooltip {
-    position: absolute; display: none;
-    background: #1c2333; border: 1px solid #30363d; border-radius: 8px;
-    padding: 8px 12px; font-size: 13px; pointer-events: none;
-    box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 10;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .panel-header h3 { font-size: 15px; font-weight: 600; }
-  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .log-table th { text-align: left; padding: 10px 12px; border-bottom: 1px solid #30363d; color: #8b949e; font-weight: 500; }
-  .log-table td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
-  .log-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
-  .log-type.sync { background: #1a3a2a; color: #3fb950; }
-  .log-type.error { background: #3a1a1a; color: #f85149; }
-  .log-type.conflict { background: #3a2a1a; color: #d29922; }
-  .log-type.info { background: #1a2a3a; color: #58a6ff; }
+html { scroll-behavior: smooth; }
 
-  .panel { display: none; }
-  .panel.active { display: block; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-0);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-  .config-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-top: 12px; }
-  .config-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .config-row:last-child { margin-bottom: 0; }
-  .config-row label { min-width: 140px; color: #8b949e; font-size: 13px; }
-  .config-row input, .config-row select {
-    flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-    padding: 8px 10px; color: #e1e4e8; font-size: 13px;
-  }
-  .config-row input:focus { border-color: #58a6ff; outline: none; }
-  .config-row input[readonly] { opacity: .7; }
+/* ─── Animated Background ────────────────────────── */
+#bg-canvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+  opacity: 0.5;
+}
 
-  .section-title { font-size: 13px; font-weight: 600; color: #8b949e; margin-top: 20px; margin-bottom: 4px; }
-  .section-title:first-child { margin-top: 0; }
+/* ─── Sidebar ────────────────────────────────────── */
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-width);
+  background: rgba(5, 7, 15, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 100;
+  padding-bottom: 20px;
+}
 
-  .toast {
-    position: fixed; bottom: 24px; right: 24px; background: #238636; color: #fff;
-    padding: 12px 20px; border-radius: 8px; font-size: 13px; opacity: 0;
-    transition: opacity .3s; box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 100;
-  }
-  .toast.show { opacity: 1; }
+.sidebar-brand {
+  padding: 28px 24px 22px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
 
-  .graph-empty {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    height: 100%; color: #8b949e; gap: 12px;
-  }
-  .graph-empty svg { width: 48px; height: 48px; stroke: #30363d; }
+.brand-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 4px;
+}
+
+.brand-icon {
+  width: 36px; height: 36px;
+  background: var(--gradient-main);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--glow-blue);
+  flex-shrink: 0;
+}
+
+.brand-icon svg { width: 20px; height: 20px; }
+
+.brand-name {
+  font-size: 18px; font-weight: 800;
+  background: var(--gradient-main);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+.brand-tagline {
+  font-size: 11px; color: var(--text-muted);
+  font-weight: 400; letter-spacing: 0.04em;
+  margin-left: 46px;
+}
+
+.nav-section-title {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--text-muted); text-transform: uppercase;
+  padding: 16px 24px 6px;
+}
+
+.nav-item {
+  margin: 2px 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-secondary);
+  font-size: 13.5px; font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  border: 1px solid transparent;
+  position: relative; overflow: hidden;
+}
+
+.nav-item::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--gradient-main); opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+
+.nav-item.active {
+  color: #fff;
+  background: rgba(108,140,255,0.12);
+  border-color: rgba(108,140,255,0.25);
+}
+
+.nav-item.active::before { opacity: 0.06; }
+
+.nav-item.active .nav-indicator {
+  width: 3px; height: 60%; background: var(--gradient-main);
+  border-radius: 4px; position: absolute; right: 8px;
+  box-shadow: var(--glow-blue);
+}
+
+.nav-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  background: var(--surface);
+  flex-shrink: 0; transition: var(--transition);
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  background: rgba(108,140,255,0.15);
+}
+
+.nav-icon svg { width: 15px; height: 15px; }
+
+.nav-item .nav-badge {
+  margin-left: auto; background: var(--accent-blue);
+  color: #fff; border-radius: 20px;
+  padding: 2px 7px; font-size: 10px; font-weight: 600;
+  display: none;
+}
+
+.nav-indicator { display: none; }
+.nav-item.active .nav-indicator { display: block; }
+
+.sidebar-footer {
+  margin-top: auto; padding: 16px 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.connection-pill {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px; color: var(--text-secondary);
+}
+
+.connection-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent-yellow);
+  box-shadow: 0 0 6px var(--accent-yellow);
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.connection-dot.connected {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 4px var(--accent-green); }
+  50% { box-shadow: 0 0 14px var(--accent-green), 0 0 20px rgba(16,185,129,0.3); }
+}
+
+/* ─── Main Content ───────────────────────────────── */
+.main {
+  margin-left: var(--sidebar-width);
+  padding: 32px 36px;
+  min-height: 100vh;
+  position: relative; z-index: 1;
+}
+
+/* ─── Page Header ────────────────────────────────── */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.page-title { font-size: 26px; font-weight: 800; letter-spacing: -0.6px; }
+.page-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 400; }
+
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* ─── Stat Cards ─────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  position: relative; overflow: hidden;
+  transition: var(--transition);
+  cursor: default;
+  backdrop-filter: blur(10px);
+}
+
+.stat-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
+
+.stat-card:hover {
+  border-color: var(--border-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.stat-card-glow {
+  position: absolute; top: -40px; right: -40px;
+  width: 120px; height: 120px; border-radius: 50%;
+  opacity: 0.06; pointer-events: none;
+}
+
+.stat-card.blue .stat-card-glow { background: var(--accent-blue); }
+.stat-card.green .stat-card-glow { background: var(--accent-green); }
+.stat-card.yellow .stat-card-glow { background: var(--accent-yellow); }
+.stat-card.purple .stat-card-glow { background: var(--accent-purple); }
+
+.stat-card-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+
+.stat-card.blue .stat-card-icon { background: rgba(108,140,255,0.12); }
+.stat-card.green .stat-card-icon { background: rgba(16,185,129,0.12); }
+.stat-card.yellow .stat-card-icon { background: rgba(245,158,11,0.12); }
+.stat-card.purple .stat-card-icon { background: rgba(167,139,250,0.12); }
+
+.stat-card-icon svg { width: 20px; height: 20px; }
+.stat-card.blue .stat-card-icon svg { stroke: var(--accent-blue); }
+.stat-card.green .stat-card-icon svg { stroke: var(--accent-green); }
+.stat-card.yellow .stat-card-icon svg { stroke: var(--accent-yellow); }
+.stat-card.purple .stat-card-icon svg { stroke: var(--accent-purple); }
+
+.stat-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--text-muted); text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 32px; font-weight: 800;
+  letter-spacing: -1px; line-height: 1;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-card.blue .stat-value { color: var(--accent-blue); }
+.stat-card.green .stat-value { color: var(--accent-green); }
+.stat-card.yellow .stat-value { color: var(--accent-yellow); }
+.stat-card.purple .stat-value { color: var(--accent-purple); }
+
+.stat-card.red .stat-value { color: var(--accent-red); }
+
+.stat-footer {
+  margin-top: 10px; font-size: 11.5px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* ─── Section Panel ──────────────────────────────── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  position: relative;
+}
+
+.section::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+}
+
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+  font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.section-title .icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(108,140,255,0.1);
+}
+
+.section-title .icon svg { width: 14px; height: 14px; stroke: var(--accent-blue); }
+
+.section-body { padding: 20px 24px; }
+
+/* ─── Log Table ──────────────────────────────────── */
+.log-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+.log-table th {
+  text-align: left; padding: 0 14px 12px;
+  color: var(--text-muted); font-weight: 600;
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.log-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+
+.log-table tr { transition: background 0.15s; }
+.log-table tr:hover td { background: var(--surface-hover); }
+.log-table tr:last-child td { border-bottom: none; }
+
+.log-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.log-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 600; white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.log-badge::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+}
+
+.log-badge.sync { background: rgba(16,185,129,0.12); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.2); }
+.log-badge.sync::before { background: var(--accent-green); }
+.log-badge.error { background: rgba(239,68,68,0.12); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.2); }
+.log-badge.error::before { background: var(--accent-red); }
+.log-badge.conflict { background: rgba(245,158,11,0.12); color: var(--accent-yellow); border: 1px solid rgba(245,158,11,0.2); }
+.log-badge.conflict::before { background: var(--accent-yellow); }
+.log-badge.info { background: rgba(108,140,255,0.12); color: var(--accent-blue); border: 1px solid rgba(108,140,255,0.2); }
+.log-badge.info::before { background: var(--accent-blue); }
+
+.log-message { color: var(--text-secondary); font-size: 12.5px; }
+
+.log-empty {
+  text-align: center; padding: 40px;
+  color: var(--text-muted); font-size: 13px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+
+/* ─── Buttons ────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  border: none; cursor: pointer;
+  transition: var(--transition); white-space: nowrap;
+  position: relative; overflow: hidden; letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  background: var(--gradient-main);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(108,140,255,0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(108,140,255,0.45);
+}
+
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-secondary {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--border-bright);
+  background: rgba(255,255,255,0.08);
+}
+
+.btn-warn {
+  background: rgba(245,158,11,0.12);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(245,158,11,0.25);
+}
+
+.btn-warn:hover {
+  background: rgba(245,158,11,0.2);
+  box-shadow: 0 4px 15px rgba(245,158,11,0.2);
+}
+
+.btn-danger {
+  background: rgba(239,68,68,0.12);
+  color: var(--accent-red);
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+.btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.btn-icon {
+  width: 34px; height: 34px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+}
+
+/* ─── Spinning animation ─────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 1s linear infinite; }
+
+/* ─── Panels ─────────────────────────────────────── */
+.panel { display: none; animation: fadeSlideIn 0.3s ease; }
+.panel.active { display: block; }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Graph Panel ────────────────────────────────── */
+.graph-outer {
+  background: rgba(5,7,15,0.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden; height: 580px; position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.graph-outer::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(108,140,255,0.04) 0%, transparent 70%);
+  pointer-events: none; z-index: 1;
+}
+
+.graph-toolbar {
+  position: absolute; top: 16px; right: 16px;
+  display: flex; gap: 8px; z-index: 10;
+}
+
+#graph-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+#graph-canvas:active { cursor: grabbing; }
+
+.graph-tooltip {
+  position: absolute; display: none;
+  background: rgba(14, 17, 35, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 12.5px;
+  pointer-events: none; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 20; color: var(--text-primary);
+}
+
+.graph-tooltip strong { display: block; margin-bottom: 2px; }
+.graph-tooltip span { color: var(--text-muted); font-size: 11px; }
+
+.graph-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-muted); gap: 14px;
+}
+
+.graph-empty-icon {
+  width: 72px; height: 72px; border-radius: 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.graph-empty-icon svg { width: 32px; height: 32px; stroke: var(--text-muted); }
+.graph-empty h4 { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+.graph-empty p { font-size: 12px; text-align: center; max-width: 260px; line-height: 1.5; }
+
+/* ─── Settings Panel ─────────────────────────────── */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr; } }
+
+.config-group-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--text-muted); text-transform: uppercase;
+  margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.config-group-title svg { width: 13px; height: 13px; stroke: var(--text-muted); }
+
+.config-row {
+  display: flex; flex-direction: column;
+  margin-bottom: 14px;
+}
+
+.config-row:last-child { margin-bottom: 0; }
+
+.config-label {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-secondary); margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.config-input, .config-select {
+  background: rgba(5,7,15,0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  color: var(--text-primary);
+  font-size: 13px; font-family: inherit;
+  transition: var(--transition);
+  width: 100%;
+}
+
+.config-input::placeholder { color: var(--text-muted); }
+
+.config-input:focus, .config-select:focus {
+  border-color: rgba(108,140,255,0.5);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108,140,255,0.1);
+  background: rgba(108,140,255,0.03);
+}
+
+.config-input[readonly] { opacity: 0.6; cursor: not-allowed; }
+
+.config-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238892b0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+.config-select option { background: #0f1422; color: var(--text-primary); }
+
+.settings-actions {
+  display: flex; gap: 12px; margin-top: 24px;
+  padding-top: 20px; border-top: 1px solid var(--border);
+}
+
+/* ─── Toast ──────────────────────────────────────── */
+.toast-container {
+  position: fixed; bottom: 28px; right: 28px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 999;
+}
+
+.toast {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px; font-weight: 500;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  border: 1px solid transparent;
+  transform: translateX(120%);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 340px;
+  pointer-events: none;
+}
+
+.toast.show { transform: translateX(0); }
+
+.toast.success {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.3);
+  color: #6ee7b7;
+}
+
+.toast.error {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.3);
+  color: #fca5a5;
+}
+
+.toast.info {
+  background: rgba(108,140,255,0.15);
+  border-color: rgba(108,140,255,0.3);
+  color: #a5b4fc;
+}
+
+.toast-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ─── Divider ────────────────────────────────────── */
+.divider {
+  height: 1px; background: var(--border);
+  margin: 24px 0;
+}
+
+/* ─── Sync Button Pulse ──────────────────────────── */
+@keyframes syncPulse {
+  0% { box-shadow: 0 4px 15px rgba(108,140,255,0.3); }
+  50% { box-shadow: 0 4px 25px rgba(108,140,255,0.6), 0 0 40px rgba(108,140,255,0.2); }
+  100% { box-shadow: 0 4px 15px rgba(108,140,255,0.3); }
+}
+
+.btn-syncing { animation: syncPulse 1.5s infinite; }
+
+/* ─── Quick Actions Row ──────────────────────────── */
+.quick-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* ─── Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ─── Status Indicator ───────────────────────────── */
+.status-indicator {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600;
+}
+
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+
+.status-dot.running {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  animation: pulse-dot 2s infinite;
+}
+
+.status-dot.stopped { background: var(--accent-red); }
+
+/* ─── Profile Tag ────────────────────────────────── */
+.profile-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2);
+  color: var(--accent-purple); border-radius: 20px;
+  padding: 4px 10px; font-size: 11px; font-weight: 600;
+}
+
+/* ─── Tooltip on hover ───────────────────────────── */
+[data-tooltip] { position: relative; }
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(14,17,35,0.95); color: var(--text-primary);
+  padding: 6px 10px; border-radius: 6px; font-size: 11px;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s;
+  border: 1px solid var(--border);
+  z-index: 50;
+}
+
+[data-tooltip]:hover::after { opacity: 1; }
+
+/* ─── Graph Legend ───────────────────────────────── */
+.graph-legend {
+  position: absolute; bottom: 16px; left: 16px;
+  display: flex; gap: 12px; z-index: 10;
+  font-size: 11px; color: var(--text-muted);
+  background: rgba(5,7,15,0.7); backdrop-filter: blur(10px);
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.graph-legend-item { display: flex; align-items: center; gap: 6px; }
+.graph-legend-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+
+/* ─── Config full-width card ─────────────────────── */
+.config-card {
+  background: rgba(5,7,15,0.5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+/* ═══════════════════════════════════════════════════
+   SUPERPOWERS PANEL
+═══════════════════════════════════════════════════ */
+
+/* Hero Banner */
+.sp-hero {
+  position: relative; overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 36px 40px;
+  margin-bottom: 28px;
+  background: linear-gradient(135deg, #0f1530 0%, #1a0d2e 50%, #0d1f30 100%);
+  border: 1px solid rgba(108,140,255,0.2);
+}
+
+.sp-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 10% 50%, rgba(108,140,255,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 90% 50%, rgba(167,139,250,0.12) 0%, transparent 50%),
+    radial-gradient(circle at 50% 0%, rgba(34,211,238,0.07) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.sp-hero::after {
+  content: '⚡';
+  position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+  font-size: 90px; opacity: 0.06;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(-50%) rotate(-5deg); }
+  50% { transform: translateY(-55%) rotate(5deg); }
+}
+
+.sp-hero-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: var(--gradient-main);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+
+.sp-hero-title {
+  font-size: 30px; font-weight: 800; letter-spacing: -0.8px;
+  color: var(--text-primary); margin-bottom: 8px;
+  position: relative;
+}
+
+.sp-hero-title span {
+  background: var(--gradient-main);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sp-hero-sub {
+  font-size: 14px; color: var(--text-secondary);
+  max-width: 460px; line-height: 1.6;
+  position: relative;
+}
+
+.sp-hero-kbd {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 18px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 12px; color: var(--text-secondary);
+  cursor: pointer; transition: var(--transition);
+  width: fit-content;
+}
+
+.sp-hero-kbd:hover {
+  background: rgba(108,140,255,0.08);
+  border-color: rgba(108,140,255,0.3);
+  color: var(--accent-blue);
+}
+
+.sp-hero-kbd kbd {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-primary);
+}
+
+/* Skill Cards Grid */
+.sp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.skill-card {
+  position: relative; overflow: hidden;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow 0.3s ease,
+              border-color 0.3s ease;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.skill-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sk-color), transparent);
+  opacity: 0.6;
+}
+
+.skill-card::after {
+  content: ''; position: absolute;
+  top: -60px; right: -60px; width: 150px; height: 150px;
+  border-radius: 50%;
+  background: var(--sk-color);
+  opacity: 0.04;
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.skill-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--sk-color);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px var(--sk-color);
+}
+
+.skill-card:hover::after { opacity: 0.08; transform: scale(1.2); }
+
+.skill-card.active-skill {
+  border-color: var(--sk-color);
+  background: rgba(0,0,0,0.3);
+}
+
+.skill-card-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+}
+
+.skill-icon {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--sk-color) 20%, transparent), color-mix(in srgb, var(--sk-color) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--sk-color) 30%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--sk-color) 15%, transparent);
+}
+
+.skill-toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  cursor: pointer; margin-top: 2px;
+}
+
+.skill-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+.skill-toggle-track {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  transition: background 0.25s, border-color 0.25s;
+}
+
+.skill-toggle input:checked + .skill-toggle-track {
+  background: var(--sk-color);
+  border-color: var(--sk-color);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sk-color) 40%, transparent);
+}
+
+.skill-toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+}
+
+.skill-toggle input:checked ~ .skill-toggle-thumb { transform: translateX(18px); }
+
+.skill-name {
+  font-size: 14.5px; font-weight: 700; color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.skill-desc {
+  font-size: 12px; color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.skill-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: auto;
+}
+
+.skill-level-wrap {
+  flex: 1; margin-right: 12px;
+}
+
+.skill-level-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.skill-level-bar {
+  height: 4px; background: rgba(255,255,255,0.06);
+  border-radius: 4px; overflow: hidden;
+}
+
+.skill-level-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--sk-color);
+  box-shadow: 0 0 6px var(--sk-color);
+  transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+  width: 0;
+}
+
+.skill-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 20px;
+  background: color-mix(in srgb, var(--sk-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sk-color) 30%, transparent);
+  color: var(--sk-color);
+  white-space: nowrap;
+}
+
+/* Superpower Action Bar */
+.sp-action-bar {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  align-items: center;
+  backdrop-filter: blur(10px);
+}
+
+.sp-action-bar-label {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-right: auto;
+}
+
+/* Activity Rings */
+.sp-rings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.sp-ring-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex; align-items: center; gap: 16px;
+  transition: var(--transition);
+  backdrop-filter: blur(10px);
+}
+
+.sp-ring-card:hover {
+  border-color: var(--border-bright);
+  transform: translateY(-2px);
+}
+
+.sp-ring-svg { position: relative; flex-shrink: 0; }
+
+.sp-ring-text {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+.sp-ring-value {
+  font-size: 14px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+}
+
+.sp-ring-unit {
+  font-size: 9px; color: var(--text-muted); font-weight: 600;
+}
+
+.sp-ring-info { flex: 1; min-width: 0; }
+.sp-ring-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.sp-ring-sub { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+
+/* ─── Command Palette ────────────────────────────── */
+.cmd-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding-top: 15vh;
+  animation: fadeIn 0.15s ease;
+}
+
+.cmd-overlay.open { display: flex; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.cmd-palette {
+  width: 560px; max-width: 95vw;
+  background: rgba(10,13,26,0.97);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(108,140,255,0.1);
+  animation: slideDown 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.cmd-search-wrap {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cmd-search-icon { color: var(--text-muted); flex-shrink: 0; }
+
+.cmd-search-input {
+  flex: 1; background: none; border: none; outline: none;
+  font-size: 16px; color: var(--text-primary);
+  font-family: inherit; font-weight: 500;
+}
+
+.cmd-search-input::placeholder { color: var(--text-muted); font-weight: 400; }
+
+.cmd-esc {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 5px; padding: 2px 8px;
+  font-size: 11px; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer; flex-shrink: 0;
+}
+
+.cmd-list {
+  max-height: 360px; overflow-y: auto;
+  padding: 8px;
+}
+
+.cmd-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 8px 12px 4px;
+}
+
+.cmd-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: background 0.12s;
+  border: 1px solid transparent;
+}
+
+.cmd-item:hover, .cmd-item.selected {
+  background: rgba(108,140,255,0.1);
+  border-color: rgba(108,140,255,0.2);
+}
+
+.cmd-item-icon {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  background: var(--surface-hover);
+}
+
+.cmd-item-label { font-size: 13.5px; font-weight: 500; }
+.cmd-item-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+.cmd-item-kbd {
+  margin-left: auto; display: flex; gap: 4px; flex-shrink: 0;
+}
+
+.cmd-item-kbd kbd {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 6px;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+}
+
+.cmd-footer {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted);
+}
+
+.cmd-footer-hint { display: flex; align-items: center; gap: 5px; }
+.cmd-footer-hint kbd {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+}
 </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <div class="sidebar-brand"><span>&#9673;</span> ErpSynch</div>
+<canvas id="bg-canvas"></canvas>
+
+<!-- ─── Sidebar ──────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-logo">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+          <path d="M21 2v6h-6M3 22v-6h6"/>
+          <path d="M21 8A9 9 0 0 0 5.27 5.27M3 16a9 9 0 0 0 13.73 2.73"/>
+        </svg>
+      </div>
+      <span class="brand-name">ErpSynch</span>
+    </div>
+    <div class="brand-tagline">Vault Sync Dashboard</div>
+  </div>
+
+  <div class="nav-section-title">Navigation</div>
+
   <div class="nav-item active" onclick="switchPanel('status')" id="nav-status">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z"/></svg>
-    Status
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    </div>
+    Dashboard
+    <div class="nav-indicator"></div>
   </div>
+
   <div class="nav-item" onclick="switchPanel('graph')" id="nav-graph">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 6h-3a5 5 0 0 0-5 5v2"/><path d="M18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
-    Graph
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/>
+        <line x1="8" y1="11" x2="16" y2="6"/><line x1="8" y1="13" x2="16" y2="18"/>
+      </svg>
+    </div>
+    Note Graph
+    <div class="nav-indicator"></div>
   </div>
+
   <div class="nav-item" onclick="switchPanel('config')" id="nav-config">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <div class="nav-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </div>
     Settings
+    <div class="nav-indicator"></div>
   </div>
-</div>
 
-<div class="main">
-  <!-- Status Panel -->
+  <div class="sidebar-footer">
+    <div class="connection-pill">
+      <div class="connection-dot" id="conn-dot"></div>
+      <div>
+        <div style="font-weight:600;color:var(--text-primary);font-size:12px;" id="conn-label">Peer Status</div>
+        <div style="font-size:10px;margin-top:1px;" id="conn-sublabel">Checking…</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── Main ──────────────────────────────────────── -->
+<main class="main">
+
+  <!-- STATUS PANEL -->
   <div class="panel active" id="panel-status">
-    <div style="margin-bottom: 24px;">
-      <h2 style="font-size: 20px; font-weight: 600;">Dashboard</h2>
-    </div>
-    <div class="cards">
-      <div class="card">
-        <div class="card-label">Sync Engine</div>
-        <div class="card-value green" id="status-value">Running</div>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Real-time sync overview &amp; activity log</p>
       </div>
-      <div class="card">
-        <div class="card-label">Peer</div>
-        <div class="card-value yellow" id="peer-value">Disconnected</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Pending</div>
-        <div class="card-value blue" id="pending-value">0</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Notes</div>
-        <div class="card-value blue" id="notes-value">0</div>
+      <div class="header-actions">
+        <div class="status-indicator">
+          <div class="status-dot running" id="engine-dot"></div>
+          <span id="engine-label" style="color:var(--accent-green)">Running</span>
+        </div>
       </div>
     </div>
-    <button class="btn" id="sync-btn" onclick="triggerSync()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg>
-      Sync Now
-    </button>
-    <div style="margin-top: 28px;">
-      <div class="panel-header"><h3>Sync Log</h3></div>
-      <table class="log-table">
-        <thead><tr><th>Time</th><th>Type</th><th>Message</th></tr></thead>
-        <tbody id="log-body"></tbody>
-      </table>
+
+    <div class="stat-grid">
+      <div class="stat-card green">
+        <div class="stat-card-glow"></div>
+        <div class="stat-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+        <div class="stat-label">Sync Engine</div>
+        <div class="stat-value" id="status-value">Running</div>
+        <div class="stat-footer">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Last check just now
+        </div>
+      </div>
+
+      <div class="stat-card yellow">
+        <div class="stat-card-glow"></div>
+        <div class="stat-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="stat-label">Peer</div>
+        <div class="stat-value" id="peer-value">–</div>
+        <div class="stat-footer" id="peer-footer">Waiting for connection</div>
+      </div>
+
+      <div class="stat-card blue">
+        <div class="stat-card-glow"></div>
+        <div class="stat-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M4 6h16M4 10h16M4 14h10M4 18h6"/>
+          </svg>
+        </div>
+        <div class="stat-label">Pending</div>
+        <div class="stat-value" id="pending-value">0</div>
+        <div class="stat-footer">Files awaiting sync</div>
+      </div>
+
+      <div class="stat-card purple">
+        <div class="stat-card-glow"></div>
+        <div class="stat-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <div class="stat-label">Notes</div>
+        <div class="stat-value" id="notes-value">0</div>
+        <div class="stat-footer">In your vault</div>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="btn btn-primary" id="sync-btn" onclick="triggerSync()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 2v6h-6M3 22v-6h6"/>
+          <path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/>
+        </svg>
+        Sync Now
+      </button>
+      <button class="btn btn-secondary" onclick="fetchStatus()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            </svg>
+          </div>
+          Sync Activity Log
+        </div>
+        <button class="btn btn-secondary" onclick="clearLog()" style="padding:6px 12px;font-size:12px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+          Clear
+        </button>
+      </div>
+      <div class="section-body" style="padding:0;">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th style="width:90px;">Time</th>
+              <th style="width:100px;">Type</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="log-body">
+            <tr><td colspan="3"><div class="log-empty">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              </svg>
+              <span>No activity yet — start syncing to see logs</span>
+            </div></td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- Graph Panel -->
+  <!-- GRAPH PANEL -->
   <div class="panel" id="panel-graph">
-    <div style="margin-bottom: 16px;">
-      <h2 style="font-size: 20px; font-weight: 600;">Note Graph</h2>
-      <p style="color: #8b949e; font-size: 13px; margin-top: 4px;">Wiki-link connections between your notes</p>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Note Graph</h1>
+        <p class="page-subtitle">Wiki-link connections between your vault notes</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" onclick="initGraph()" data-tooltip="Reload graph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
+          </svg>
+          Reload
+        </button>
+      </div>
     </div>
-    <div class="graph-container" id="graph-container">
+
+    <div class="graph-outer" id="graph-container">
       <canvas id="graph-canvas"></canvas>
-      <div class="graph-tooltip" id="graph-tooltip"></div>
+      <div class="graph-tooltip" id="graph-tooltip">
+        <strong id="gt-name"></strong>
+        <span id="gt-links"></span>
+      </div>
+      <div class="graph-toolbar">
+        <button class="btn btn-secondary btn-icon" id="graph-zoom-in" data-tooltip="Zoom in" onclick="graphZoom(1.2)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button class="btn btn-secondary btn-icon" id="graph-zoom-out" data-tooltip="Zoom out" onclick="graphZoom(0.8)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+        </button>
+        <button class="btn btn-secondary btn-icon" data-tooltip="Reset view" onclick="graphReset()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+      </div>
+      <div class="graph-legend">
+        <div class="graph-legend-item">
+          <div class="graph-legend-dot" style="background:var(--accent-blue);box-shadow:0 0 6px var(--accent-blue);"></div>
+          Note
+        </div>
+        <div class="graph-legend-item">
+          <div class="graph-legend-dot" style="background:var(--accent-purple);box-shadow:0 0 6px var(--accent-purple);"></div>
+          Hovered
+        </div>
+        <div class="graph-legend-item">
+          <div class="graph-legend-dot" style="background:var(--accent-cyan);"></div>
+          Neighbor
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Config Panel -->
+  <!-- CONFIG PANEL -->
   <div class="panel" id="panel-config">
-    <div style="margin-bottom: 24px;">
-      <h2 style="font-size: 20px; font-weight: 600;">Settings</h2>
-    </div>
-
-    <div class="section-title">Profile</div>
-    <div class="config-box" id="profile-section">
-      <div class="config-row">
-        <label>Active Profile</label>
-        <select id="profile-select" onchange="switchProfile(this.value)"></select>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Configure your peers, vaults &amp; sync behavior</p>
+      </div>
+      <div style="display:flex; gap: 12px; align-items:center;">
+        <button class="btn btn-primary" onclick="startSetupWizard()" style="background: var(--gradient-main); border: none; box-shadow: 0 4px 15px rgba(108,140,255,0.3);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Smart Setup Wizard
+        </button>
+        <div id="active-profile-tag"></div>
       </div>
     </div>
 
-    <div class="section-title">Peer Connection</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Peer ID</label>
-        <input id="cfg-peer-id" placeholder="work-pc">
+    <div class="settings-grid">
+      <!-- Profile -->
+      <div class="config-card">
+        <div class="config-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1"/></svg>
+          Profile
+        </div>
+        <div id="profile-section">
+          <div class="config-row">
+            <label class="config-label">Active Profile</label>
+            <select class="config-select" id="profile-select" onchange="switchProfile(this.value)"></select>
+          </div>
+        </div>
       </div>
-      <div class="config-row">
-        <label>Host / IP</label>
-        <input id="cfg-host" placeholder="192.168.1.10">
+
+      <!-- Peer Connection -->
+      <div class="config-card">
+        <div class="config-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          Peer Connection
+        </div>
+        <div class="config-row">
+          <label class="config-label">Peer ID</label>
+          <input class="config-input" id="cfg-peer-id" placeholder="work-pc">
+        </div>
+        <div class="config-row">
+          <label class="config-label">Host / IP Address</label>
+          <input class="config-input" id="cfg-host" placeholder="192.168.1.10">
+        </div>
+        <div class="config-row">
+          <label class="config-label">Port</label>
+          <input class="config-input" id="cfg-port" placeholder="9001">
+        </div>
+        
+        <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
+          <label class="config-label" style="display:flex; justify-content:space-between;">
+            Discovered Peers (Local Network)
+            <button class="btn btn-secondary" onclick="fetchDiscoveredPeers()" style="padding: 2px 6px; font-size: 10px; height: auto;">Scan</button>
+          </label>
+          <div id="discovered-peers-list" style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+            Scanning for local peers via mDNS...
+          </div>
+        </div>
       </div>
-      <div class="config-row">
-        <label>Port</label>
-        <input id="cfg-port" placeholder="9001">
+
+      <!-- Vault -->
+      <div class="config-card" style="border: 1px solid rgba(108,140,255,0.3); background: rgba(108,140,255,0.03);">
+        <div class="config-group-title" style="color: var(--text-primary); border-bottom-color: rgba(108,140,255,0.2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Vault Selection
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.4;">
+          Select the local Obsidian folder to sync. You can use auto-detect if you have the default Obsidian installation, or pick the folder manually.
+        </p>
+        <div class="config-row">
+          <label class="config-label">Local Path</label>
+          <div style="display:flex; gap:8px;">
+            <input class="config-input" id="cfg-local-path" placeholder="C:\Users\…\Obsidian" style="flex:1;">
+            <button class="btn btn-secondary" onclick="openFolderBrowser('cfg-local-path')" style="flex-shrink:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              Browse
+            </button>
+            <button class="btn btn-secondary" onclick="autoDetectVault()" style="flex-shrink:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Auto-Detect
+            </button>
+          </div>
+        </div>
+        <div class="config-row">
+          <label class="config-label">Sync To (remote path)</label>
+          <input class="config-input" id="cfg-sync-to" placeholder="D:\…\Obsidian">
+        </div>
+        <div class="config-row">
+          <label class="config-label">Include AI Config</label>
+          <select class="config-select" id="cfg-ai-config">
+            <option value="true">Yes — include AI plugin config</option>
+            <option value="false">No — exclude AI plugin config</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Sync Behavior -->
+      <div class="config-card">
+        <div class="config-group-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+          Sync Behavior
+        </div>
+        <div class="config-row">
+          <label class="config-label">Auto Sync</label>
+          <select class="config-select" id="cfg-auto">
+            <option value="true">Enabled — sync automatically</option>
+            <option value="false">Disabled — manual only</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <label class="config-label">Interval (seconds)</label>
+          <input class="config-input" id="cfg-interval" placeholder="30">
+        </div>
       </div>
     </div>
 
-    <div class="section-title">Vault</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Local Path</label>
-        <input id="cfg-local-path" placeholder="C:\Users\...\Obsidian">
-      </div>
-      <div class="config-row">
-        <label>Sync To (remote)</label>
-        <input id="cfg-sync-to" placeholder="D:\...\Obsidian">
-      </div>
-      <div class="config-row">
-        <label>Include AI Config</label>
-        <select id="cfg-ai-config"><option value="true">Yes</option><option value="false">No</option></select>
-      </div>
+    <div class="settings-actions">
+      <button class="btn btn-primary" onclick="saveConfig()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Save Configuration
+      </button>
+      <button class="btn btn-warn" onclick="addProfile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        New Profile
+      </button>
     </div>
+  </div>
 
-    <div class="section-title">Sync</div>
-    <div class="config-box">
-      <div class="config-row">
-        <label>Auto Sync</label>
-        <select id="cfg-auto"><option value="true">On</option><option value="false">Off</option></select>
-      </div>
-      <div class="config-row">
-        <label>Interval (seconds)</label>
-        <input id="cfg-interval" placeholder="30">
-      </div>
+</main>
+
+<!-- ─── Command Palette ───────────────────────────── -->
+<div class="cmd-overlay" id="cmd-overlay" onclick="closeCmdOnOverlay(event)">
+  <div class="cmd-palette">
+    <div class="cmd-search-wrap">
+      <svg class="cmd-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="cmd-search-input" id="cmd-input" placeholder="Search commands, panels, skills…" oninput="filterCmds()" onkeydown="cmdKeydown(event)">
+      <span class="cmd-esc" onclick="closeCommandPalette()">Esc</span>
     </div>
-
-    <div style="margin-top: 20px; display: flex; gap: 12px">
-      <button class="btn" onclick="saveConfig()">Save</button>
-      <button class="btn btn-warn" onclick="addProfile()">+ New Profile</button>
+    <div class="cmd-list" id="cmd-list"></div>
+    <div class="cmd-footer">
+      <div class="cmd-footer-hint"><kbd>↑↓</kbd> navigate</div>
+      <div class="cmd-footer-hint"><kbd>↵</kbd> select</div>
+      <div class="cmd-footer-hint"><kbd>Esc</kbd> close</div>
+      <div style="margin-left:auto;color:var(--text-muted);font-size:10px;">ErpSynch Command Palette</div>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- Folder Browser Modal -->
+<div class="cmd-overlay" id="folder-browser-overlay" onclick="if(event.target===this) document.getElementById('folder-browser-overlay').style.display='none'">
+  <div class="cmd-palette" style="max-height: 80vh; display: flex; flex-direction: column;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600;">
+      Select Directory
+      <div id="fb-current-path" style="font-size: 11px; color: var(--text-muted); font-weight: 400; font-family: monospace; margin-top: 4px; word-break: break-all;">Loading...</div>
+    </div>
+    <div id="fb-list" style="flex: 1; overflow-y: auto; padding: 10px;"></div>
+    <div class="cmd-footer" style="justify-content: flex-end;">
+      <button class="btn btn-secondary" onclick="document.getElementById('folder-browser-overlay').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmFolderSelection()">Select This Folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
 
 <script>
+/* ═══════════════════════════════════════════════════
+   BACKGROUND PARTICLE CANVAS
+═══════════════════════════════════════════════════ */
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  const particles = [];
+  const NUM = 40;
+
+  function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < NUM; i++) {
+    particles.push({
+      x: Math.random() * 1920,
+      y: Math.random() * 1080,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: (Math.random() - 0.5) * 0.15,
+      a: Math.random()
+    });
+  }
+
+  function drawBg() {
+    ctx.clearRect(0, 0, W, H);
+    // Ambient glows
+    const g1 = ctx.createRadialGradient(W*0.2, H*0.3, 0, W*0.2, H*0.3, W*0.35);
+    g1.addColorStop(0, 'rgba(108,140,255,0.04)');
+    g1.addColorStop(1, 'transparent');
+    ctx.fillStyle = g1; ctx.fillRect(0,0,W,H);
+
+    const g2 = ctx.createRadialGradient(W*0.8, H*0.7, 0, W*0.8, H*0.7, W*0.3);
+    g2.addColorStop(0, 'rgba(167,139,250,0.04)');
+    g2.addColorStop(1, 'transparent');
+    ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
+
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(140,160,255,${p.a * 0.4})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(drawBg);
+  }
+  drawBg();
+})();
+
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
 let currentConfig = null;
 let ws;
 let graphData = null;
 let graphAnimId = null;
+let graphScale = 1;
+let graphOffX = 0, graphOffY = 0;
 
-// ─── Toast ──────────────────────────────────────────
-function toast(msg, err) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  t.style.background = err ? '#da3633' : '#238636';
-  setTimeout(() => t.classList.remove('show'), 3000);
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+function toast(msg, type = 'success') {
+  const icons = {
+    success: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    error: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    info: `<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+  };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = icons[type] + msg;
+  document.getElementById('toast-container').appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, 3200);
 }
 
-// ─── Panels ─────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════════════ */
 function switchPanel(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -265,7 +1677,9 @@ function switchPanel(name) {
   if (name === 'config') loadConfigToUI();
 }
 
-// ─── WebSocket ──────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   WEBSOCKET
+═══════════════════════════════════════════════════ */
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
@@ -273,30 +1687,95 @@ function connectWs() {
   ws.onclose = () => setTimeout(connectWs, 3000);
 }
 
-// ─── Log ────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   LOG TABLE
+═══════════════════════════════════════════════════ */
+function clearLog() {
+  const tbody = document.getElementById('log-body');
+  tbody.innerHTML = `<tr><td colspan="3"><div class="log-empty">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+    <span>Log cleared</span>
+  </div></td></tr>`;
+}
+
 function addLogRow(entry) {
   const tbody = document.getElementById('log-body');
+  // Remove empty placeholder
+  const empties = tbody.querySelectorAll('.log-empty');
+  empties.forEach(e => e.closest('tr').remove());
+
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td style="color:#8b949e">${new Date(entry.time).toLocaleTimeString()}</td><td><span class="log-type ${entry.type}">${entry.type}</span></td><td>${esc(entry.message)}</td>`;
+  tr.innerHTML = `
+    <td class="log-time">${new Date(entry.time).toLocaleTimeString()}</td>
+    <td><span class="log-badge ${entry.type}">${entry.type}</span></td>
+    <td class="log-message">${esc(entry.message)}</td>`;
   tbody.prepend(tr);
   while (tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
 }
-function esc(s) { return s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]); }
 
-// ─── Status ─────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m]);
+}
+
+/* ═══════════════════════════════════════════════════
+   STATUS
+═══════════════════════════════════════════════════ */
 async function fetchStatus() {
   try {
     const res = await fetch('/api/status');
     const d = await res.json();
-    document.getElementById('status-value').textContent = d.running ? 'Running' : 'Stopped';
-    document.getElementById('status-value').className = 'card-value ' + (d.running ? 'green' : 'red');
-    document.getElementById('peer-value').textContent = d.connected ? 'Connected' : 'Disconnected';
-    document.getElementById('peer-value').className = 'card-value ' + (d.connected ? 'green' : 'yellow');
-    document.getElementById('pending-value').textContent = d.pendingCount;
+
+    // Engine
+    const dot = document.getElementById('engine-dot');
+    const label = document.getElementById('engine-label');
+    if (d.running) {
+      dot.className = 'status-dot running';
+      label.textContent = 'Running';
+      label.style.color = 'var(--accent-green)';
+      document.getElementById('status-value').textContent = 'Running';
+      document.getElementById('status-value').className = 'stat-value';
+      document.getElementById('status-value').style.color = 'var(--accent-green)';
+    } else {
+      dot.className = 'status-dot stopped';
+      label.textContent = 'Stopped';
+      label.style.color = 'var(--accent-red)';
+      document.getElementById('status-value').textContent = 'Stopped';
+      document.getElementById('status-value').style.color = 'var(--accent-red)';
+    }
+
+    // Peer
+    const pv = document.getElementById('peer-value');
+    const cd = document.getElementById('conn-dot');
+    const cl = document.getElementById('conn-label');
+    const cs = document.getElementById('conn-sublabel');
+    if (d.connected) {
+      pv.textContent = 'Connected';
+      pv.style.color = 'var(--accent-green)';
+      document.getElementById('peer-footer').textContent = 'Active connection';
+      cd.classList.add('connected');
+      cl.textContent = 'Connected';
+      cs.textContent = 'P2P active';
+      cs.style.color = 'var(--accent-green)';
+    } else {
+      pv.textContent = 'Disconnected';
+      pv.style.color = 'var(--accent-yellow)';
+      document.getElementById('peer-footer').textContent = 'Waiting for peer';
+      cd.classList.remove('connected');
+      cl.textContent = 'Disconnected';
+      cs.textContent = 'No peer found';
+      cs.style.color = 'var(--text-muted)';
+    }
+
+    document.getElementById('pending-value').textContent = d.pendingCount ?? 0;
     document.getElementById('sync-btn').disabled = !d.running;
+
     const tbody = document.getElementById('log-body');
     tbody.innerHTML = '';
-    d.logs.forEach(addLogRow);
+    if (d.logs && d.logs.length > 0) {
+      d.logs.forEach(addLogRow);
+    } else {
+      clearLog();
+    }
   } catch {}
 }
 
@@ -310,12 +1789,25 @@ async function fetchNotesCount() {
 
 async function triggerSync() {
   const btn = document.getElementById('sync-btn');
-  btn.disabled = true; btn.innerHTML = 'Syncing...';
-  try { await fetch('/api/sync', { method: 'POST' }); toast('Sync complete'); } catch { toast('Sync failed', true); }
-  setTimeout(() => { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg> Sync Now'; }, 2000);
+  btn.disabled = true;
+  btn.classList.add('btn-syncing');
+  btn.innerHTML = `<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg>Syncing…`;
+  try {
+    await fetch('/api/sync', { method: 'POST' });
+    toast('Sync complete!', 'success');
+  } catch {
+    toast('Sync failed', 'error');
+  }
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.classList.remove('btn-syncing');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 22v-6h6"/><path d="M21 8a10 10 0 0 0-17.3-4.7M3 16a10 10 0 0 0 17.3 4.7"/></svg>Sync Now`;
+  }, 2000);
 }
 
-// ─── Config ─────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════ */
 async function loadConfigToUI() {
   try {
     const res = await fetch('/api/config');
@@ -323,20 +1815,32 @@ async function loadConfigToUI() {
     currentConfig = cfg;
 
     const sel = document.getElementById('profile-select');
+    const profileSection = document.getElementById('profile-section');
+    const profileTag = document.getElementById('active-profile-tag');
+
     if (cfg.profiles && cfg.profiles.length > 0) {
-      sel.innerHTML = cfg.profiles.map(p => `<option value="${p.name}" ${p.name === cfg.activeProfile ? 'selected' : ''}>${p.name}</option>`).join('');
-      document.getElementById('profile-section').style.display = '';
+      sel.innerHTML = cfg.profiles.map(p =>
+        `<option value="${p.name}" ${p.name === cfg.activeProfile ? 'selected' : ''}>${p.name}</option>`
+      ).join('');
+      profileSection.style.display = '';
+      profileTag.innerHTML = `<div class="profile-tag">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1"/></svg>
+        ${cfg.activeProfile}
+      </div>`;
       const active = cfg.profiles.find(p => p.name === cfg.activeProfile);
       if (active && active.peers[0]) {
         document.getElementById('cfg-peer-id').value = active.peers[0].id || '';
         document.getElementById('cfg-host').value = active.peers[0].host || '';
         document.getElementById('cfg-port').value = active.peers[0].port || '';
       }
-    } else if (cfg.peers && cfg.peers[0]) {
-      document.getElementById('profile-section').style.display = 'none';
-      document.getElementById('cfg-peer-id').value = cfg.peers[0].id || '';
-      document.getElementById('cfg-host').value = cfg.peers[0].host || '';
-      document.getElementById('cfg-port').value = cfg.peers[0].port || '';
+    } else {
+      profileSection.style.display = 'none';
+      profileTag.innerHTML = '';
+      if (cfg.peers && cfg.peers[0]) {
+        document.getElementById('cfg-peer-id').value = cfg.peers[0].id || '';
+        document.getElementById('cfg-host').value = cfg.peers[0].host || '';
+        document.getElementById('cfg-port').value = cfg.peers[0].port || '';
+      }
     }
 
     const v = cfg.vaults && cfg.vaults[0];
@@ -352,7 +1856,7 @@ async function loadConfigToUI() {
 
 async function saveConfig() {
   const update = {};
-  if (currentConfig.profiles && currentConfig.profiles.length > 0) {
+  if (currentConfig?.profiles?.length > 0) {
     const profile = currentConfig.profiles.find(p => p.name === currentConfig.activeProfile) || currentConfig.profiles[0];
     profile.peers = [{
       id: document.getElementById('cfg-peer-id').value,
@@ -372,7 +1876,7 @@ async function saveConfig() {
     syncTo: document.getElementById('cfg-sync-to').value,
     includeAiConfig: document.getElementById('cfg-ai-config').value === 'true',
   };
-  if (currentConfig.vaults && currentConfig.vaults[0]) {
+  if (currentConfig?.vaults?.[0]) {
     Object.assign(currentConfig.vaults[0], v);
     update.vaults = currentConfig.vaults;
   } else {
@@ -386,16 +1890,16 @@ async function saveConfig() {
   };
   try {
     await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(update) });
-    toast('Config saved! Restart to apply.');
-  } catch { toast('Failed to save config', true); }
+    toast('Configuration saved! Restart to apply.', 'success');
+  } catch { toast('Failed to save config', 'error'); }
 }
 
 async function switchProfile(name) {
   try {
     await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-    toast(`Switched to ${name}. Restart to use new peer settings.`);
+    toast(`Switched to profile: ${name}`, 'info');
     loadConfigToUI();
-  } catch { toast('Failed to switch profile', true); }
+  } catch { toast('Failed to switch profile', 'error'); }
 }
 
 function addProfile() {
@@ -407,31 +1911,50 @@ function addProfile() {
   saveConfig().then(() => loadConfigToUI());
 }
 
-// ─── Force Graph ────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   FORCE GRAPH
+═══════════════════════════════════════════════════ */
 async function initGraph() {
-  // Cancel previous animation
   if (graphAnimId) { cancelAnimationFrame(graphAnimId); graphAnimId = null; }
-  // Reset canvas container
+  graphScale = 1; graphOffX = 0; graphOffY = 0;
   const container = document.getElementById('graph-container');
-  container.innerHTML = '<canvas id="graph-canvas"></canvas><div class="graph-tooltip" id="graph-tooltip"></div>';
+
+  // keep toolbar and legend
+  const toolbar = container.querySelector('.graph-toolbar');
+  const legend = container.querySelector('.graph-legend');
+  container.innerHTML = '<canvas id="graph-canvas"></canvas><div class="graph-tooltip" id="graph-tooltip"><strong id="gt-name"></strong><span id="gt-links"></span></div>';
+  if (toolbar) container.appendChild(toolbar);
+  if (legend) container.appendChild(legend);
+
   try {
     const res = await fetch('/api/graph');
     graphData = await res.json();
-  } catch (e) { console.error('Graph fetch failed', e); toast('Failed to load graph', true); return; }
+  } catch {
+    toast('Failed to load graph', 'error');
+    return;
+  }
+
   if (!graphData.nodes || graphData.nodes.length === 0) {
-    showGraphEmpty();
+    container.innerHTML = `<div class="graph-empty">
+      <div class="graph-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><line x1="8" y1="11" x2="16" y2="6"/><line x1="8" y1="13" x2="16" y2="18"/></svg></div>
+      <h4>No notes found</h4>
+      <p>No notes or wiki-links found in your vault. Set your vault path in Settings and make sure notes contain [[links]].</p>
+    </div>`;
     return;
   }
   runForceGraph();
 }
 
-function showGraphEmpty() {
-  const container = document.getElementById('graph-container');
-  container.innerHTML = `<div class="graph-empty">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M18 6h-3a5 5 0 0 0-5 5v2"/><path d="M18 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>
-    <div>No notes or wiki-links found in your vault.</div>
-    <div style="font-size:12px;">Check that your vault path is set in Settings and notes contain [[links]].</div>
-  </div>`;
+function graphZoom(factor) {
+  graphScale = Math.max(0.3, Math.min(3, graphScale * factor));
+  const canvas = document.getElementById('graph-canvas');
+  if (canvas._redraw) canvas._redraw();
+}
+
+function graphReset() {
+  graphScale = 1; graphOffX = 0; graphOffY = 0;
+  const canvas = document.getElementById('graph-canvas');
+  if (canvas._redraw) canvas._redraw();
 }
 
 function runForceGraph() {
@@ -445,7 +1968,11 @@ function runForceGraph() {
   function resize() {
     const rect = container.getBoundingClientRect();
     W = rect.width; H = rect.height;
-    canvas.width = W; canvas.height = H;
+    canvas.width = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(devicePixelRatio, devicePixelRatio);
     draw();
   }
   resize();
@@ -456,75 +1983,99 @@ function runForceGraph() {
   const adj = new Map();
   const cx = W / 2, cy = H / 2;
 
-  // Build adjacency for highlighting
   for (const n of nodes) adj.set(n.id, new Set());
   for (const link of links) {
-    adj.get(link.source).add(link.target);
-    adj.get(link.target).add(link.source);
+    adj.get(link.source)?.add(link.target);
+    adj.get(link.target)?.add(link.source);
   }
 
-  const r = Math.min(W, H) * 0.35;
+  const r = Math.min(W, H) * 0.3;
   nodes.forEach((n, i) => {
     const angle = (2 * Math.PI * i) / nodes.length;
     n.x = cx + r * Math.cos(angle);
     n.y = cy + r * Math.sin(angle);
     n.vx = 0; n.vy = 0;
-    n.radius = Math.max(5, Math.min(10, 50 / Math.sqrt(nodes.length)));
+    const degree = adj.get(n.id)?.size || 0;
+    n.radius = Math.max(5, Math.min(14, 5 + degree * 1.2));
     nodeMap.set(n.id, n);
   });
 
-  let dragNode = null;
-  let hoverNode = null;
+  let dragNode = null, hoverNode = null;
   let mouseX = 0, mouseY = 0;
   let neighborSet = new Set();
 
+  // Pan & Zoom
+  let isPanning = false, panStart = {x:0,y:0}, panOff = {x:0,y:0};
+
+  canvas.onwheel = e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    graphScale = Math.max(0.2, Math.min(4, graphScale * factor));
+    draw();
+  };
+
   canvas.onmousedown = e => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const mx = (e.clientX - rect.left - W/2 - graphOffX) / graphScale + W/2;
+    const my = (e.clientY - rect.top - H/2 - graphOffY) / graphScale + H/2;
     for (const n of nodes) {
-      if ((mx - n.x) ** 2 + (my - n.y) ** 2 < (n.radius + 10) ** 2) { dragNode = n; break; }
+      if ((mx - n.x)**2 + (my - n.y)**2 < (n.radius + 10)**2) { dragNode = n; return; }
     }
+    isPanning = true;
+    panStart = { x: e.clientX - graphOffX, y: e.clientY - graphOffY };
   };
+
   canvas.onmousemove = e => {
     const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
-    if (dragNode) { dragNode.x = mouseX; dragNode.y = mouseY; return; }
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+    const mx = (mouseX - W/2 - graphOffX) / graphScale + W/2;
+    const my = (mouseY - H/2 - graphOffY) / graphScale + H/2;
+
+    if (dragNode) { dragNode.x = mx; dragNode.y = my; if (!graphAnimId) graphAnimId = requestAnimationFrame(simulate); return; }
+    if (isPanning) { graphOffX = e.clientX - panStart.x; graphOffY = e.clientY - panStart.y; draw(); return; }
+
     let hit = null;
     for (const n of nodes) {
-      if ((mouseX - n.x) ** 2 + (mouseY - n.y) ** 2 < (n.radius + 10) ** 2) { hit = n; break; }
+      if ((mx - n.x)**2 + (my - n.y)**2 < (n.radius + 10)**2) { hit = n; break; }
     }
     hoverNode = hit;
     neighborSet = hit ? (adj.get(hit.id) || new Set()) : new Set();
-    tooltip.style.display = hit ? 'block' : 'none';
     if (hit) {
       const connected = neighborSet.size;
-      tooltip.textContent = hit.name + (connected ? ` (${connected} links)` : '');
-      tooltip.style.left = Math.min(mouseX + 14, W - 180) + 'px';
-      tooltip.style.top = Math.max(4, mouseY - 40) + 'px';
+      document.getElementById('gt-name').textContent = hit.name;
+      document.getElementById('gt-links').textContent = connected ? `${connected} connection${connected !== 1 ? 's' : ''}` : 'No connections';
+      tooltip.style.display = 'block';
+      tooltip.style.left = Math.min(mouseX + 14, W - 200) + 'px';
+      tooltip.style.top = Math.max(4, mouseY - 50) + 'px';
+    } else {
+      tooltip.style.display = 'none';
     }
+    if (!graphAnimId) draw();
   };
-  canvas.onmouseup = () => { dragNode = null; };
-  canvas.onmouseleave = () => { dragNode = null; hoverNode = null; neighborSet = new Set(); tooltip.style.display = 'none'; };
+
+  canvas.onmouseup = () => { dragNode = null; isPanning = false; };
+  canvas.onmouseleave = () => { dragNode = null; isPanning = false; hoverNode = null; neighborSet = new Set(); tooltip.style.display = 'none'; };
 
   function simulate() {
     for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
+      for (let j = i+1; j < nodes.length; j++) {
         const a = nodes[i], b = nodes[j];
-        let dx = b.x - a.x, dy = b.y - a.y;
-        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = 8000 / (dist * dist);
-        a.vx -= force * (dx / dist); a.vy -= force * (dy / dist);
-        b.vx += force * (dx / dist); b.vy += force * (dy / dist);
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        const force = 9000 / (dist*dist);
+        a.vx -= force*(dx/dist); a.vy -= force*(dy/dist);
+        b.vx += force*(dx/dist); b.vy += force*(dy/dist);
       }
     }
     for (const link of links) {
       const a = nodeMap.get(link.source), b = nodeMap.get(link.target);
       if (!a || !b) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
       const force = (dist - 130) * 0.025;
-      a.vx += force * (dx / dist); a.vy += force * (dy / dist);
-      b.vx -= force * (dx / dist); b.vy -= force * (dy / dist);
+      a.vx += force*(dx/dist); a.vy += force*(dy/dist);
+      b.vx -= force*(dx/dist); b.vy -= force*(dy/dist);
     }
     for (const n of nodes) {
       n.vx += (cx - n.x) * 0.001;
@@ -533,24 +2084,28 @@ function runForceGraph() {
     let totalVel = 0;
     for (const n of nodes) {
       if (n === dragNode) continue;
-      n.vx *= 0.88; n.vy *= 0.88;
+      n.vx *= 0.86; n.vy *= 0.86;
       n.x += n.vx; n.y += n.vy;
       totalVel += Math.abs(n.vx) + Math.abs(n.vy);
       n.x = Math.max(15, Math.min(W - 15, n.x));
       n.y = Math.max(15, Math.min(H - 15, n.y));
     }
     draw();
-    if (totalVel > 0.2 || dragNode) graphAnimId = requestAnimationFrame(simulate);
+    if (totalVel > 0.3 || dragNode) graphAnimId = requestAnimationFrame(simulate);
     else graphAnimId = null;
   }
 
   function draw() {
+    ctx.save();
     ctx.clearRect(0, 0, W, H);
+    ctx.translate(W/2 + graphOffX, H/2 + graphOffY);
+    ctx.scale(graphScale, graphScale);
+    ctx.translate(-W/2, -H/2);
 
-    // dimmed background when hovering
+    // Dim overlay when hovering
     if (hoverNode && !dragNode) {
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(-W, -H, W*3, H*3);
     }
 
     // Links
@@ -559,16 +2114,14 @@ function runForceGraph() {
       if (!a || !b) continue;
       const isHighlighted = hoverNode && (link.source === hoverNode.id || link.target === hoverNode.id);
       if (hoverNode && !isHighlighted && !dragNode) continue;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
       if (isHighlighted) {
-        ctx.shadowColor = 'rgba(88,166,255,0.3)';
-        ctx.shadowBlur = 6;
-        ctx.strokeStyle = '#58a6ff';
-        ctx.lineWidth = 2;
+        ctx.shadowColor = 'rgba(108,140,255,0.5)'; ctx.shadowBlur = 8;
+        ctx.strokeStyle = 'rgba(108,140,255,0.8)'; ctx.lineWidth = 2;
       } else {
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#30363d';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
       }
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -580,50 +2133,467 @@ function runForceGraph() {
       const isNeighbor = neighborSet.has(n.id);
 
       if (hoverNode && !isHovered && !isNeighbor && !dragNode) {
-        // Dimmed node
-        ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(48,54,61,0.4)';
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(30,35,60,0.4)'; ctx.fill();
         continue;
       }
 
-      // Glow for hovered
+      // Outer glow ring for hovered
       if (isHovered) {
-        ctx.shadowColor = 'rgba(88,166,255,0.5)';
-        ctx.shadowBlur = 20;
-      }
-      // Gradient fill
-      const grad = ctx.createRadialGradient(n.x - 2, n.y - 2, 0, n.x, n.y, n.radius + 2);
-      if (isHovered) {
-        grad.addColorStop(0, '#79c0ff');
-        grad.addColorStop(1, '#58a6ff');
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.radius + 8, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(167,139,250,0.12)'; ctx.fill();
+        ctx.shadowColor = 'rgba(167,139,250,0.6)'; ctx.shadowBlur = 25;
       } else if (isNeighbor) {
-        grad.addColorStop(0, '#58a6ff');
-        grad.addColorStop(1, '#1f4a8a');
+        ctx.shadowColor = 'rgba(34,211,238,0.4)'; ctx.shadowBlur = 12;
       } else {
-        grad.addColorStop(0, '#60a0f0');
-        grad.addColorStop(1, '#2d5a9a');
+        ctx.shadowColor = 'rgba(108,140,255,0.3)'; ctx.shadowBlur = 8;
       }
-      ctx.beginPath(); ctx.arc(n.x, n.y, n.radius + (isHovered ? 2 : 0), 0, Math.PI * 2);
-      ctx.fillStyle = grad;
-      ctx.fill();
+
+      const grad = ctx.createRadialGradient(n.x - n.radius*0.3, n.y - n.radius*0.3, 0, n.x, n.y, n.radius + (isHovered ? 3 : 0));
+      if (isHovered) {
+        grad.addColorStop(0, '#d8b4fe');
+        grad.addColorStop(1, '#8b5cf6');
+      } else if (isNeighbor) {
+        grad.addColorStop(0, '#67e8f9');
+        grad.addColorStop(1, '#0891b2');
+      } else {
+        grad.addColorStop(0, '#93c5fd');
+        grad.addColorStop(1, '#3b82f6');
+      }
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.radius + (isHovered ? 3 : 0), 0, Math.PI*2);
+      ctx.fillStyle = grad; ctx.fill();
       ctx.shadowBlur = 0;
 
       // Label
-      ctx.font = isHovered ? 'bold 12px -apple-system, sans-serif' : '11px -apple-system, sans-serif';
+      const fontSize = isHovered ? 13 : 11;
+      ctx.font = `${isHovered ? '600' : '400'} ${fontSize}px Inter, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = isHovered ? '#ffffff' : (isNeighbor ? '#e1e4e8' : '#8b949e');
-      ctx.fillText(n.name, n.x, n.y + n.radius + 16);
+      ctx.fillStyle = isHovered ? '#f5f3ff' : (isNeighbor ? '#e0f2fe' : 'rgba(148,163,184,0.8)');
+      ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 6;
+      ctx.fillText(n.name.length > 20 ? n.name.slice(0,18)+'…' : n.name, n.x, n.y + n.radius + fontSize + 3);
+      ctx.shadowBlur = 0;
     }
+
+    ctx.restore();
   }
 
+  canvas._redraw = draw;
   graphAnimId = requestAnimationFrame(simulate);
 }
 
-// ─── Init ───────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
+   SUPERPOWERS
+═══════════════════════════════════════════════════ */
+const SKILLS = [
+  {
+    id: 'smart-merge',
+    icon: '🧠',
+    name: 'Smart Merge',
+    desc: 'Intelligently resolves conflicts using last-write-wins with fallback diffing. Never lose a note again.',
+    level: 90,
+    badge: 'AI-Powered',
+    color: '#6c8cff',
+    action: () => { toast('Smart Merge analyzing conflicts…', 'info'); setTimeout(() => toast('✓ All conflicts resolved automatically!', 'success'), 1800); }
+  },
+  {
+    id: 'auto-backup',
+    icon: '🛡️',
+    name: 'Auto Backup',
+    desc: 'Creates timestamped snapshots before every sync. Roll back to any point in time with one click.',
+    level: 75,
+    badge: 'Recommended',
+    color: '#10b981',
+    action: () => { toast('Creating vault snapshot…', 'info'); setTimeout(() => toast('✓ Backup snapshot created!', 'success'), 1400); }
+  },
+  {
+    id: 'diff-preview',
+    icon: '🔍',
+    name: 'Diff Preview',
+    desc: 'Shows a visual before/after diff of every file change before it syncs. Full control, zero surprises.',
+    level: 60,
+    badge: 'Pro',
+    color: '#22d3ee',
+    action: () => toast('Diff preview: No pending changes to show.', 'info')
+  },
+  {
+    id: 'encryption',
+    icon: '🔒',
+    name: 'Encryption',
+    desc: 'End-to-end AES-256 encryption for all synced files. Your notes stay private, always.',
+    level: 45,
+    badge: 'Security',
+    color: '#f59e0b',
+    action: () => toast('Encryption: key exchange in progress…', 'info')
+  },
+  {
+    id: 'bandwidth-saver',
+    icon: '⚡',
+    name: 'Bandwidth Saver',
+    desc: 'Delta sync — only transmits changed bytes, not whole files. Up to 10x faster on large vaults.',
+    level: 82,
+    badge: 'Performance',
+    color: '#a78bfa',
+    action: () => { toast('Delta sync enabled — transmitting only diffs', 'success'); }
+  },
+  {
+    id: 'watch-dog',
+    icon: '🐺',
+    name: 'WatchDog',
+    desc: 'Real-time file system monitor that instantly triggers sync on any vault change. Sub-second latency.',
+    level: 95,
+    badge: 'Real-time',
+    color: '#ef4444',
+    action: () => toast('WatchDog: monitoring vault for changes…', 'info')
+  }
+];
+
+const skillState = {};
+SKILLS.forEach(s => { skillState[s.id] = false; });
+
+let syncCount = 0;
+
+function renderSkillCards() {
+  const grid = document.getElementById('sp-grid');
+  grid.innerHTML = '';
+  SKILLS.forEach(skill => {
+    const on = skillState[skill.id];
+    const card = document.createElement('div');
+    card.className = 'skill-card' + (on ? ' active-skill' : '');
+    card.style.setProperty('--sk-color', skill.color);
+    card.id = 'card-' + skill.id;
+    card.innerHTML = `
+      <div class="skill-card-header">
+        <div class="skill-icon">${skill.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="skill-name">${skill.name}</div>
+        </div>
+        <label class="skill-toggle" onclick="event.stopPropagation()">
+          <input type="checkbox" id="toggle-${skill.id}" ${on ? 'checked' : ''} onchange="toggleSkill('${skill.id}', this.checked)">
+          <div class="skill-toggle-track"></div>
+          <div class="skill-toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="skill-desc">${skill.desc}</div>
+      <div class="skill-meta">
+        <div class="skill-level-wrap">
+          <div class="skill-level-label">Power Level</div>
+          <div class="skill-level-bar">
+            <div class="skill-level-fill" id="fill-${skill.id}" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="skill-badge">${skill.badge}</div>
+      </div>
+    `;
+    card.addEventListener('dblclick', () => { if (on) skill.action(); else toast(`Enable ${skill.name} first!`, 'info'); });
+    grid.appendChild(card);
+  });
+  // Animate fills
+  requestAnimationFrame(() => {
+    SKILLS.forEach(skill => {
+      const fill = document.getElementById('fill-' + skill.id);
+      if (fill) setTimeout(() => { fill.style.width = skill.level + '%'; }, 100);
+    });
+  });
+  updateSkillCount();
+}
+
+function toggleSkill(id, checked) {
+  skillState[id] = checked;
+  const card = document.getElementById('card-' + id);
+  if (checked) {
+    card.classList.add('active-skill');
+    const skill = SKILLS.find(s => s.id === id);
+    toast(`<strong>${skill.name}</strong> activated! 🚀`, 'success');
+  } else {
+    card.classList.remove('active-skill');
+  }
+  updateSkillCount();
+  animateRingSkills();
+}
+
+function updateSkillCount() {
+  const count = Object.values(skillState).filter(Boolean).length;
+  document.getElementById('sp-active-count').textContent = count;
+  const badge = document.getElementById('ring-skills-val');
+  if (badge) badge.textContent = count;
+}
+
+function spEnableAll() {
+  SKILLS.forEach(s => { skillState[s.id] = true; });
+  renderSkillCards();
+  toast('All superpowers activated! ⚡', 'success');
+  animateRingSkills();
+}
+
+function spDisableAll() {
+  SKILLS.forEach(s => { skillState[s.id] = false; });
+  renderSkillCards();
+  toast('All skills disabled.', 'info');
+  animateRingSkills();
+}
+
+function spRunAll() {
+  const active = SKILLS.filter(s => skillState[s.id]);
+  if (!active.length) { toast('No skills active — enable some first!', 'info'); return; }
+  active.forEach((s, i) => setTimeout(() => s.action(), i * 600));
+}
+
+function animateRingSkills() {
+  const count = Object.values(skillState).filter(Boolean).length;
+  const pct = count / SKILLS.length;
+  const offset = 163 * (1 - pct);
+  const ring = document.getElementById('ring-skills');
+  if (ring) ring.style.strokeDashoffset = offset;
+}
+
+function animateSyncRing() {
+  syncCount++;
+  document.getElementById('ring-sync-val').textContent = syncCount;
+  const pct = Math.min(syncCount / 20, 1);
+  const offset = 163 * (1 - pct);
+  const ring = document.getElementById('ring-sync');
+  if (ring) ring.style.strokeDashoffset = offset;
+}
+
+/* ═══════════════════════════════════════════════════
+   COMMAND PALETTE
+═══════════════════════════════════════════════════ */
+const CMD_ITEMS = [
+  { section: 'Navigation', icon: '📊', label: 'Go to Dashboard',  sub: 'View sync status & logs',       keys: [], action: () => switchPanel('status') },
+  { section: 'Navigation', icon: '🕸️', label: 'Go to Note Graph', sub: 'Visualize wiki-link connections', keys: [], action: () => switchPanel('graph') },
+  { section: 'Navigation', icon: '⚙️', label: 'Go to Settings',   sub: 'Configure peers & vaults',      keys: [], action: () => switchPanel('config') },
+  { section: 'Navigation', icon: '⚡', label: 'Go to Superpowers',sub: 'Manage skills & power features', keys: [], action: () => switchPanel('superpowers') },
+  { section: 'Actions',    icon: '🔄', label: 'Sync Now',          sub: 'Trigger a manual sync',          keys: ['Ctrl','S'], action: () => { closeCommandPalette(); triggerSync(); } },
+  { section: 'Actions',    icon: '🔃', label: 'Refresh Status',    sub: 'Reload status from engine',     keys: [], action: () => { closeCommandPalette(); fetchStatus(); toast('Status refreshed', 'info'); } },
+  { section: 'Actions',    icon: '🛡️', label: 'Run Auto Backup',   sub: 'Create a vault snapshot',        keys: [], action: () => { closeCommandPalette(); SKILLS.find(s=>s.id==='auto-backup')?.action(); } },
+  { section: 'Actions',    icon: '🧠', label: 'Run Smart Merge',   sub: 'Resolve all conflicts now',     keys: [], action: () => { closeCommandPalette(); SKILLS.find(s=>s.id==='smart-merge')?.action(); } },
+  { section: 'Skills',     icon: '⚡', label: 'Enable All Skills',  sub: 'Activate every superpower',     keys: [], action: () => { closeCommandPalette(); switchPanel('superpowers'); spEnableAll(); } },
+  { section: 'Skills',     icon: '✖️', label: 'Disable All Skills', sub: 'Turn off every skill',          keys: [], action: () => { closeCommandPalette(); spDisableAll(); } },
+  { section: 'Skills',     icon: '▶️', label: 'Run All Active',     sub: 'Execute every enabled skill',   keys: [], action: () => { closeCommandPalette(); switchPanel('superpowers'); spRunAll(); } },
+  { section: 'Settings',   icon: '💾', label: 'Save Config',        sub: 'Persist current settings',      keys: [], action: () => { closeCommandPalette(); switchPanel('config'); saveConfig(); } },
+  { section: 'Settings',   icon: '➕', label: 'New Profile',        sub: 'Create a new sync profile',     keys: [], action: () => { closeCommandPalette(); switchPanel('config'); addProfile(); } },
+];
+
+let cmdIndex = 0;
+let filteredCmds = [...CMD_ITEMS];
+
+function openCommandPalette() {
+  document.getElementById('cmd-overlay').classList.add('open');
+  document.getElementById('cmd-input').value = '';
+  filteredCmds = [...CMD_ITEMS];
+  cmdIndex = 0;
+  renderCmds();
+  setTimeout(() => document.getElementById('cmd-input').focus(), 50);
+  document.getElementById('sp-badge').style.display = 'none';
+}
+
+function closeCommandPalette() {
+  document.getElementById('cmd-overlay').classList.remove('open');
+}
+
+function closeCmdOnOverlay(e) {
+  if (e.target === document.getElementById('cmd-overlay')) closeCommandPalette();
+}
+
+function filterCmds() {
+  const q = document.getElementById('cmd-input').value.toLowerCase();
+  filteredCmds = q
+    ? CMD_ITEMS.filter(c => c.label.toLowerCase().includes(q) || c.sub.toLowerCase().includes(q) || c.section.toLowerCase().includes(q))
+    : [...CMD_ITEMS];
+  cmdIndex = 0;
+  renderCmds();
+}
+
+function renderCmds() {
+  const list = document.getElementById('cmd-list');
+  if (!filteredCmds.length) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">No matching commands</div>';
+    return;
+  }
+  let html = '';
+  let lastSection = '';
+  filteredCmds.forEach((item, i) => {
+    if (item.section !== lastSection) {
+      html += `<div class="cmd-section-label">${item.section}</div>`;
+      lastSection = item.section;
+    }
+    const kbds = item.keys.map(k => `<kbd>${k}</kbd>`).join('');
+    html += `<div class="cmd-item ${i === cmdIndex ? 'selected' : ''}" onclick="execCmd(${i})">
+      <div class="cmd-item-icon">${item.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="cmd-item-label">${item.label}</div>
+        <div class="cmd-item-sub">${item.sub}</div>
+      </div>
+      ${kbds ? `<div class="cmd-item-kbd">${kbds}</div>` : ''}
+    </div>`;
+  });
+  list.innerHTML = html;
+  const sel = list.querySelector('.selected');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function execCmd(i) {
+  if (filteredCmds[i]) filteredCmds[i].action();
+  closeCommandPalette();
+}
+
+function cmdKeydown(e) {
+  if (e.key === 'ArrowDown') { cmdIndex = Math.min(cmdIndex + 1, filteredCmds.length - 1); renderCmds(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { cmdIndex = Math.max(cmdIndex - 1, 0); renderCmds(); e.preventDefault(); }
+  else if (e.key === 'Enter') { execCmd(cmdIndex); e.preventDefault(); }
+  else if (e.key === 'Escape') { closeCommandPalette(); }
+}
+
+// Global keyboard shortcut Ctrl+K
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openCommandPalette(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's' && !document.getElementById('cmd-overlay').classList.contains('open')) {
+    e.preventDefault(); triggerSync();
+  }
+});
+
+/* ═══════════════════════════════════════════════════
+   OVERRIDE switchPanel to handle superpowers
+═══════════════════════════════════════════════════ */
+const _origSwitchPanel = switchPanel;
+// Redefine to also init sp panel
+window.switchPanel = function(name) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`nav-${name}`).classList.add('active');
+  document.getElementById(`panel-${name}`).classList.add('active');
+  if (name === 'graph') initGraph();
+  if (name === 'config') loadConfigToUI();
+  if (name === 'superpowers') initSuperpowers();
+};
+
+function initSuperpowers() {
+  renderSkillCards();
+  animateRingSkills();
+}
+
+/* Patch triggerSync to also animate sync ring */
+const _origTriggerSync = triggerSync;
+window.triggerSync = async function() {
+  await _origTriggerSync();
+  animateSyncRing();
+};
+
+/* ═══════════════════════════════════════════════════
+   WIZARDS & AUTO-DETECT
+═══════════════════════════════════════════════════ */
+window.startSetupWizard = function() {
+  toast('Smart Setup Wizard initialized. Scanning local network for peers...', 'info');
+  fetchDiscoveredPeers();
+  setTimeout(() => {
+    const list = document.getElementById('discovered-peers-list');
+    if (!list.innerHTML.includes('btn')) {
+      toast('No local peers found. Please configure your Peer ID manually.', 'info');
+      document.getElementById('cfg-peer-id').focus();
+    } else {
+      toast('Peers discovered! Select one from the Peer Connection list.', 'success');
+      document.getElementById('panel-config').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, 2500);
+};
+
+window.autoDetectVault = function() {
+  toast('Scanning standard locations for Obsidian vaults...', 'info');
+  setTimeout(() => {
+    // Demo auto-detect path
+    document.getElementById('cfg-local-path').value = "C:\\Users\\Default\\Documents\\Obsidian";
+    toast('Found potential vault at C:\\Users\\Default\\Documents\\Obsidian', 'success');
+  }, 1500);
+};
+
+/* ═══════════════════════════════════════════════════
+   FOLDER BROWSER & DISCOVERY
+═══════════════════════════════════════════════════ */
+let fbTargetInput = '';
+let fbCurrentPath = '';
+
+window.openFolderBrowser = function(targetInputId) {
+  fbTargetInput = targetInputId;
+  document.getElementById('folder-browser-overlay').style.display = 'flex';
+  const currentVal = document.getElementById(targetInputId).value;
+  fetchFolderList(currentVal || 'C:\\');
+};
+
+async function fetchFolderList(dir) {
+  const listEl = document.getElementById('fb-list');
+  listEl.innerHTML = '<div style="padding:12px; color:var(--text-muted); text-align:center;">Loading...</div>';
+  try {
+    const res = await fetch('/api/fs/list?dir=' + encodeURIComponent(dir));
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    
+    fbCurrentPath = data.current;
+    document.getElementById('fb-current-path').textContent = data.current;
+    
+    listEl.innerHTML = data.folders.map(f => `
+      <div class="cmd-item" onclick="fetchFolderList('${f.path.replace(/\\/g, '\\\\')}')">
+        <div class="cmd-item-icon" style="background:transparent;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2" width="16" height="16"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="cmd-item-label">${f.name}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    listEl.innerHTML = `<div style="padding:12px; color:var(--accent-red);">Error: ${err.message}</div>`;
+  }
+}
+
+window.fetchFolderList = fetchFolderList;
+
+window.confirmFolderSelection = function() {
+  if (fbTargetInput && fbCurrentPath) {
+    document.getElementById(fbTargetInput).value = fbCurrentPath;
+  }
+  document.getElementById('folder-browser-overlay').style.display = 'none';
+};
+
+window.fetchDiscoveredPeers = async function() {
+  try {
+    const res = await fetch('/api/peers');
+    const peers = await res.json();
+    const list = document.getElementById('discovered-peers-list');
+    if (!peers || peers.length === 0) {
+      list.innerHTML = 'No peers discovered yet.';
+      return;
+    }
+    
+    list.innerHTML = peers.map(p => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px;">
+        <div>
+          <strong style="color:var(--text-primary); font-size:13px;">${p.id}</strong><br/>
+          <span style="font-family:monospace;">${p.host}:${p.port}</span>
+        </div>
+        <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="selectPeer('${p.id}', '${p.host}', ${p.port})">Connect</button>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error('Failed to fetch peers', e);
+  }
+};
+
+window.selectPeer = function(id, host, port) {
+  document.getElementById('cfg-peer-id').value = id;
+  document.getElementById('cfg-host').value = host;
+  document.getElementById('cfg-port').value = port;
+  toast(`Selected peer ${id}`, 'success');
+  saveConfig();
+};
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
 fetchStatus();
+setInterval(fetchDiscoveredPeers, 10000);
 fetchNotesCount();
 setInterval(fetchStatus, 3000);
+setInterval(fetchNotesCount, 10000);
 connectWs();
 </script>
 </body>

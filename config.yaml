@@ -9,23 +9,18 @@ profiles:
       - id: office-pc
         host: 10.0.0.50
         port: 9001
-
 activeProfile: home
-
 vaults:
-  - local_path: C:\Users\Sami\Desktop\SamiBrain\ERPsynch
-    sync_to: D:\Obsidian\ERPsynch
-    include_ai_config: true
-
+  - localPath: C:\Users\MEGAUPLOAD\Desktop\ERP Brain\ERPBrain
+    syncTo: D:\Obsidian\ERPsynch
+    includeAiConfig: true
 sync:
   auto: true
-  interval_seconds: 30
-  debounce_ms: 2000
+  intervalSeconds: 30
   conflict: last-write-wins
   encryption: none
-
 transport:
   type: webrtc
-  stun_servers:
+  stunServers:
     - stun:stun.l.google.com:19302
-  turn_servers: []
+  turnServers: []

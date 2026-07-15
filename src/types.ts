@@ -30,7 +30,7 @@ export interface SyncConfig {
   auto: boolean;
   intervalSeconds: number;
   debounceMs: number;
-  conflict: 'last-write-wins';
+  conflict: 'last-write-wins' | 'keep-both';
   encryption: 'none';
 }
 
